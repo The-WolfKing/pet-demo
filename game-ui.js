@@ -795,7 +795,7 @@ function refreshEvolvePage() {
   const list = document.getElementById('evolve-pet-list');
   list.innerHTML = '';
   selectedEvolvePet = null;
-  document.getElementById('evolve-panel').classList.add('hidden');
+  document.getElementById('evolve-overlay').classList.add('hidden');
 
   const allPets = GameState.pets.filter(p => p.species.maxEvo > 0);
   if (allPets.length === 0) {
