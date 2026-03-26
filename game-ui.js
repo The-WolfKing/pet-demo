@@ -1053,7 +1053,8 @@ function refreshTeamDungeon() {
       const card = document.createElement('div');
       card.className = 'pet-mini-card';
       card.dataset.petId = pet.id;
-      card.innerHTML = `<span class="mini-emoji">${pet.species.emoji}</span><div class="mini-info"><div class="mini-name">${pet.name} <span style="color:#8899aa">Lv.${pet.level}</span></div><div class="mini-compact-stats">${renderCompactStats(pet)}</div></div>`;
+      const q = QUALITY[pet.quality];
+      card.innerHTML = `<span class="mini-emoji">${pet.species.emoji}</span><div class="mini-info"><div class="mini-name" style="color:${q.color}">${pet.name} <span style="color:#8899aa">Lv.${pet.level}</span> <span style="color:#f1c40f;font-size:10px">G${pet.generation}</span>${pet.isShiny?'<span style="color:#f39c12;font-size:10px"> ✨</span>':''}${pet.isVariant?'<span style="color:#9b59b6;font-size:10px"> 🎨</span>':''}</div><div class="mini-compact-stats">${renderCompactStats(pet)}</div></div>`;
       card.addEventListener('click', () => toggleTeamMember(pet, card));
       list.appendChild(card);
     });
@@ -1140,7 +1141,8 @@ function refreshTowerDungeon() {
     GameState.pets.forEach(pet => {
       const card = document.createElement('div');
       card.className = 'pet-mini-card';
-      card.innerHTML = `<span class="mini-emoji">${pet.species.emoji}</span><div class="mini-info"><div class="mini-name">${pet.name} <span style="color:#8899aa">Lv.${pet.level}</span></div><div class="mini-compact-stats">${renderCompactStats(pet)}</div></div>`;
+      const q = QUALITY[pet.quality];
+      card.innerHTML = `<span class="mini-emoji">${pet.species.emoji}</span><div class="mini-info"><div class="mini-name" style="color:${q.color}">${pet.name} <span style="color:#8899aa">Lv.${pet.level}</span> <span style="color:#f1c40f;font-size:10px">G${pet.generation}</span>${pet.isShiny?'<span style="color:#f39c12;font-size:10px"> ✨</span>':''}${pet.isVariant?'<span style="color:#9b59b6;font-size:10px"> 🎨</span>':''}</div><div class="mini-compact-stats">${renderCompactStats(pet)}</div></div>`;
       card.addEventListener('click', () => {
         document.querySelectorAll('#tower-pet-list .pet-mini-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
