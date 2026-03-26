@@ -378,9 +378,10 @@ function createBattleUnit(pet) {
   };
 }
 
+let battleUnitIdCounter = 0;
 function createEnemyUnit(enemy) {
   return {
-    id: -Math.random(),
+    id: --battleUnitIdCounter,
     name: enemy.name,
     emoji: enemy.isElite ? '👹' : '👾',
     petRef: null,
@@ -458,15 +459,15 @@ function runTeamBattle(team, floorIndex) {
         target.curHp -= dmg;
         ally.dmgDealt += dmg;
         target.dmgTaken += dmg;
-        log.push({ type: 'action', actor: ally.name, actorEmoji: ally.emoji, skill: skill.name, skillIcon: skill.data.icon || '⚔️', target: target.name, dmg, targetHp: Math.max(0, target.curHp), targetMaxHp: target.maxHp });
+        log.push({ type: 'action', actorId: ally.id, actor: ally.name, actorEmoji: ally.emoji, skill: skill.name, skillIcon: skill.data.icon || '⚔️', targetId: target.id, target: target.name, dmg, targetHp: Math.max(0, target.curHp), targetMaxHp: target.maxHp });
         if (target.curHp <= 0) {
           target.alive = false;
           ally.killCount++;
-          log.push({ type: 'kill', actor: ally.name, target: target.name });
+          log.push({ type: 'kill', actorId: ally.id, actor: ally.name, targetId: target.id, target: target.name });
         }
       } else {
         // buff/heal类技能
-        log.push({ type: 'action', actor: ally.name, actorEmoji: ally.emoji, skill: skill.name, skillIcon: skill.data.icon || '✨', target: ally.name, dmg: 0, info: skill.data.desc });
+        log.push({ type: 'action', actorId: ally.id, actor: ally.name, actorEmoji: ally.emoji, skill: skill.name, skillIcon: skill.data.icon || '✨', targetId: ally.id, target: ally.name, dmg: 0, info: skill.data.desc });
       }
       setSkillCd(skill);
     }
@@ -483,11 +484,11 @@ function runTeamBattle(team, floorIndex) {
       target.curHp -= dmg;
       enemy.dmgDealt += dmg;
       target.dmgTaken += dmg;
-      log.push({ type: 'action', actor: enemy.name, actorEmoji: enemy.emoji, skill: skill.name, skillIcon: '⚔️', target: target.name, dmg, targetHp: Math.max(0, target.curHp), targetMaxHp: target.maxHp });
+      log.push({ type: 'action', actorId: enemy.id, actor: enemy.name, actorEmoji: enemy.emoji, skill: skill.name, skillIcon: '⚔️', targetId: target.id, target: target.name, dmg, targetHp: Math.max(0, target.curHp), targetMaxHp: target.maxHp });
       if (target.curHp <= 0) {
         target.alive = false;
         enemy.killCount++;
-        log.push({ type: 'death', actor: target.name, actorEmoji: target.emoji });
+        log.push({ type: 'death', actorId: target.id, actor: target.name, actorEmoji: target.emoji });
         // 扣除寿命
         if (target.petRef) target.petRef.lifeCap = Math.max(0, target.petRef.lifeCap - 1);
       }
@@ -554,8 +555,8 @@ function runTowerBattle(pet, floorIndex) {
         boss.curHp -= dmg;
         ally.dmgDealt += dmg;
         boss.dmgTaken += dmg;
-        log.push({ type: 'action', actor:ally.name, actorEmoji: ally.emoji, skill: sk1.name, skillIcon: sk1.data.icon || '⚔️', target: boss.name, dmg, targetHp: Math.max(0, boss.curHp), targetMaxHp: boss.maxHp });
-        if (boss.curHp <= 0) { boss.alive = false; ally.killCount++; log.push({ type: 'kill', actor: ally.name, target: boss.name }); }
+        log.push({ type: 'action', actorId: ally.id, actor:ally.name, actorEmoji: ally.emoji, skill: sk1.name, skillIcon: sk1.data.icon || '⚔️', targetId: boss.id, target: boss.name, dmg, targetHp: Math.max(0, boss.curHp), targetMaxHp: boss.maxHp });
+        if (boss.curHp <= 0) { boss.alive = false; ally.killCount++; log.push({ type: 'kill', actorId: ally.id, actor: ally.name, targetId: boss.id, target: boss.name }); }
       }
       setSkillCd(sk1);
     }
@@ -568,10 +569,10 @@ function runTowerBattle(pet, floorIndex) {
       ally.curHp -= dmg;
       boss.dmgDealt += dmg;
       ally.dmgTaken += dmg;
-      log.push({ type: 'action', actor: boss.name, actorEmoji: boss.emoji, skill: sk2.name, skillIcon: '⚔️', target: ally.name, dmg, targetHp: Math.max(0, ally.curHp), targetMaxHp: ally.maxHp });
+      log.push({ type: 'action', actorId: boss.id, actor: boss.name, actorEmoji: boss.emoji, skill: sk2.name, skillIcon: '⚔️', targetId: ally.id, target: ally.name, dmg, targetHp: Math.max(0, ally.curHp), targetMaxHp: ally.maxHp });
       if (ally.curHp <= 0) {
         ally.alive = false;
-        log.push({ type: 'death', actor: ally.name, actorEmoji: ally.emoji });
+        log.push({ type: 'death', actorId: ally.id, actor: ally.name, actorEmoji: ally.emoji });
         if (ally.petRef) ally.petRef.lifeCap = Math.max(0, ally.petRef.lifeCap - 1);
       }
       setSkillCd(sk2);

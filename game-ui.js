@@ -1149,6 +1149,9 @@ function playBattleArena(result, onFinish) {
     const atkCard = document.getElementById(`arena-unit-${attackerUid}`);
     const tgtCard = document.getElementById(`arena-unit-${targetUid}`);
     if (!atkCard || !tgtCard) return;
+    // 已死亡的单位不播放攻击动画
+    if (hpState[attackerUid] && !hpState[attackerUid].alive) return;
+    if (hpState[targetUid] && !hpState[targetUid].alive) return;
 
     // 判断方向：我方往上撞，敌方往下撞
     const isAlly = allyIds.has(attackerUid);
@@ -1160,13 +1163,15 @@ function playBattleArena(result, onFinish) {
     }, 300);
   }
 
-  function findTargetId(entry) {
-    // 在allies/enemies中搜索name匹配的单位
+  // 优先使用log中记录的ID，回退到name匹配
+  function getTargetId(entry) {
+    if (entry.targetId !== undefined && entry.targetId !== null) return entry.targetId;
     const all = [...result.allies, ...result.enemies];
     const found = all.find(u => u.name === entry.target);
     return found ? found.id : null;
   }
-  function findActorId(entry) {
+  function getActorId(entry) {
+    if (entry.actorId !== undefined && entry.actorId !== null) return entry.actorId;
     const all = [...result.allies, ...result.enemies];
     const found = all.find(u => u.name === entry.actor);
     return found ? found.id : null;
@@ -1191,8 +1196,8 @@ function playBattleArena(result, onFinish) {
       actionText.textContent = '';
       setTimeout(playNext, 400);
     } else if (ev.type === 'action') {
-      const actorId = findActorId(ev);
-      const targetId = findTargetId(ev);
+      const actorId = getActorId(ev);
+      const targetId = getTargetId(ev);
       actionText.innerHTML = `${ev.actorEmoji} <b>${ev.actor}</b> → ${ev.skillIcon || '⚔️'} ${ev.skill} → <b>${ev.target}</b>`;
 
       if (ev.dmg > 0 && targetId !== null) {
@@ -1216,7 +1221,7 @@ function playBattleArena(result, onFinish) {
 
       setTimeout(playNext, TICK_MS);
     } else if (ev.type === 'kill') {
-      const targetId = findTargetId(ev);
+      const targetId = getTargetId(ev);
       if (targetId !== null && hpState[targetId]) {
         hpState[targetId].alive = false;
         hpState[targetId].cur = 0;
@@ -1231,7 +1236,7 @@ function playBattleArena(result, onFinish) {
       logBar.scrollTop = logBar.scrollHeight;
       setTimeout(playNext, TICK_MS);
     } else if (ev.type === 'death') {
-      const actorId = findActorId(ev);
+      const actorId = getActorId(ev);
       if (actorId !== null && hpState[actorId]) {
         hpState[actorId].alive = false;
         hpState[actorId].cur = 0;
