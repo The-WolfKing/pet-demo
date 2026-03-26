@@ -1642,8 +1642,8 @@ function refreshBatchList() {
       <input type="checkbox" class="bp-check" data-pet-id="${pet.id}" ${isChecked ? 'checked' : ''}>
       <span class="bp-emoji">${pet.species.emoji}</span>
       <div class="bp-info">
-        <div class="bp-name" style="color:${q.color}">${pet.name} <span style="color:#8899aa;font-weight:normal">Lv.${pet.level}</span></div>
-        <div class="bp-detail">${q.name} | G${pet.generation} | 资质${getPotentialPercent(pet)}%</div>
+        <div class="bp-name" style="color:${pet.isVariant ? '#e67e22' : q.color}">${pet.name} <span style="color:#8899aa;font-weight:normal">Lv.${pet.level}</span></div>
+        <div class="bp-detail">${q.name} | G${pet.generation} | 资质${getPotentialPercent(pet)}%${pet.isShiny ? ' <span class="tag tag-shiny" style="font-size:10px;padding:1px 4px">✨闪光</span>' : ''}${pet.isVariant ? ' <span class="tag tag-variant" style="font-size:10px;padding:1px 4px">🎨异色</span>' : ''}</div>
       </div>
     `;
 
