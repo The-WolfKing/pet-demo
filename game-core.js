@@ -179,11 +179,25 @@ function createPet(speciesId, quality, gender, options = {}) {
     potential.hp  = Math.min(Math.floor(potential.hp  * 1.10), potentialCap.hp);
   }
 
+  // ★ 异色判定（5%概率）
+  // variantIndex: 0=抓捕异色, 1=conside heredity
+  let isVariant = options.isVariant || false;
+  let variantName = options.variantName || null;
+  if (!isVariant && Math.random() < CONFIG.VARIANT_CHANCE) {
+    isVariant = true;
+    const variantIndex = (gen === 0) ? 0 : 1; // 抓捕=0, 繁育=1
+    const names = VARIANT_NAMES[speciesId];
+    variantName = names ? names[variantIndex] : (gen === 0 ? '异色-' : '变异-') + species.name;
+  }
+
   const lifeCap = options.lifeCap || randInt(CONFIG.LIFE_CAP_MIN, CONFIG.LIFE_CAP_MAX);
+
+  // 伙伴名称：异色用异色名，否则用种类名
+  const petName = variantName || species.name;
 
   const pet = {
     id: ++petIdCounter,
-    name: options.variantName || species.name,
+    name: petName,
     speciesId: species.id,
     species: species,
     quality: quality,
@@ -199,8 +213,8 @@ function createPet(speciesId, quality, gender, options = {}) {
     lifeCap: lifeCap,
     life: lifeCap,
     isShiny: isShiny,
-    isVariant: options.isVariant || false,
-    variantName: options.variantName || null,
+    isVariant: isVariant,
+    variantName: variantName,
     aura: options.aura || null,
     evoStage: 0,
     fatherId: options.fatherId || null,
@@ -419,11 +433,6 @@ function breed(father, mother) {
   if (mother.isShiny) shinyChance += CONFIG.SHINY_PARENT_BONUS;
   const isShiny = Math.random() < shinyChance;
 
-  // ★ 异色（5%概率，仅通过繁育产生，异色不可再繁育）
-  const isVariant = Math.random() < CONFIG.VARIANT_CHANCE;
-  let variantName = null;
-  if (isVariant) { variantName = pick(VARIANT_NAMES[speciesId] || ['异色体']); }
-
   // ★ 光环（不遗传，独立判定）
   let aura = null;
   if (Math.random() < CONFIG.AURA_CHANCE) {
@@ -433,7 +442,7 @@ function breed(father, mother) {
 
   const child = createPet(speciesId, childQuality, gender, {
     generation: childGen, potential, potentialCap: cap, skillCount, affixes: childAffixes,
-    isShiny, isVariant, variantName, aura,
+    isShiny, aura,
     lifeCap: randInt(CONFIG.LIFE_CAP_MIN, CONFIG.LIFE_CAP_MAX),
     fatherId: father.id, motherId: mother.id, level: 1,
   });
@@ -518,7 +527,7 @@ function createEnemyUnit(enemy) {
 function selectSkill(unit) {
   const ready = unit.skills.filter(s => s.curCd <= 0 && s.data.type !== 'passive');
   if (ready.length === 0) return null;
-  // 按CD降序排（CD越长=越强=优先释放）
+  // 按CD降序排（CD越长=更强=优先释放）
   ready.sort((a, b) => (b.data.cd || 1) - (a.data.cd || 1));
   return ready[0];
 }

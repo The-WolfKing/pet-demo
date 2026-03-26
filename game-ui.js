@@ -145,7 +145,7 @@ function renderPetDetailCard(pet, extraInfo) {
   return `
     <div class="pdc-card">
       <div class="pdc-emoji">${pet.species.emoji}${pet.isShiny ? '<span class="pdc-shiny">✨</span>' : ''}</div>
-      <div class="pdc-name" style="color:${q.color}">${pet.name} <span style="color:${pet.gender==='male'?'#3498db':'#e74c3c'}">${gi}</span></div>
+      <div class="pdc-name" style="color:${pet.isVariant ? '#e67e22' : q.color}">${pet.isVariant ? '🎨 ' : ''}${pet.name} <span style="color:${pet.gender==='male'?'#3498db':'#e74c3c'}">${gi}</span></div>
       <div class="pdc-badges">
         <span class="pdc-quality-badge" style="background:${q.color}">${q.name}</span>
         <span class="pdc-type">${TYPE_TEMPLATE[pet.species.type].icon} ${TYPE_TEMPLATE[pet.species.type].name}</span>
@@ -377,8 +377,21 @@ function showInvDetail(pet) {
   // Affixes
   let affixHtml = pet.affixes.map(a => {
     const color = getAffixColor(a);
-    const valStr = typeof a.value === 'number' ? (a.value > 0 ? '+' : '') + a.value : a.value;
-    return `<div style="color:${color};padding:2px 0">${a.name} ${valStr}</div>`;
+    let valStr = '';
+    if (a.isMixed) {
+      const buffLabel = a.buffStat === 'all' ? '全属性' : a.buffStat.toUpperCase();
+      const debuffLabel = a.debuffStat === 'all' ? '全属性' : a.debuffStat.toUpperCase();
+      const buffStr = `${buffLabel}+${a.buffValue}${a.buffType==='pct'?'%':''}`;
+      const debuffStr = `${debuffLabel}${a.debuffValue}${a.debuffType==='pct'?'%':''}`;
+      valStr = `<span style="color:#27ae60">${buffStr}</span> / <span style="color:#e74c3c">${debuffStr}</span>`;
+    } else if (a.isGen10) {
+      valStr = '<span style="color:#e74c3c">全属性 +18%</span>';
+    } else if (a.type === 'pct') {
+      valStr = `<span style="color:${a.value>0?'#27ae60':'#e74c3c'}">${a.stat==='all'?'全属性':a.stat.toUpperCase()} ${a.value>0?'+':''}${a.value}%</span>`;
+    } else {
+      valStr = `<span style="color:${a.value>0?'#27ae60':'#e74c3c'}">${a.stat==='all'?'全属性':a.stat.toUpperCase()} ${a.value>0?'+':''}${a.value}</span>`;
+    }
+    return `<div style="padding:2px 0">${a.name}：${valStr}</div>`;
   }).join('');
   document.getElementById('detail-affixes').innerHTML = `
     <div style="font-size:12px;font-weight:bold;margin-bottom:6px;color:#8899aa">📜 词条 (${pet.affixes.length})</div>
@@ -460,36 +473,104 @@ function refreshCapturePage() {
 document.getElementById('btn-capture').addEventListener('click', () => {
   if (!selectedScene) { alert('请先选择一个场景！'); return; }
   if (GameState.pokeball <= 0) { alert('精灵球不足！请等待恢复或看广告获取。'); return; }
-  // 将整个场景伙伴池传给capturePet，由品质概率决定抓到什么
+  if (captureAnimLock) return; // 动画进行中不可重复抓捕
+  lastCaptureSceneIds = selectedScene.speciesIds; // 记住场景
   const pet = capturePet(selectedScene.speciesIds);
   if (!pet) { alert('抓捕失败！'); return; }
   showCaptureResult(pet);
   refreshCapturePage();
   updateFooter();
-  saveGame(); // 自动存档
+  saveGame();
 });
 
-function showCaptureResult(pet) {
-  const panel = document.getElementById('capture-result');
-  panel.classList.remove('hidden');
+let captureAnimLock = false; // 防止动画未完成时重复抓捕
+let lastCaptureSceneIds = null; // 记住上次场景
 
-  let shinyBanner = '';
-  if (pet.isShiny) {
-    shinyBanner = `
-      <div class="shiny-banner">
-        <div class="shiny-stars">✨✨✨</div>
-        <div class="shiny-text">🌟 闪光个体！！！🌟</div>
-        <div class="shiny-desc">运气爆棚！资质额外 +10%！</div>
-        <div class="shiny-stars">✨✨✨</div>
+function showCaptureResult(pet) {
+  const overlay = document.getElementById('capture-result-overlay');
+  const panel = document.getElementById('capture-result');
+  overlay.classList.remove('hidden');
+  captureAnimLock = true;
+
+  // 第1阶段：精灵球飞出动画
+  panel.innerHTML = `
+    <div class="capture-anim-stage" style="position:relative;overflow:hidden;">
+      <div class="pokeball-throw">🔴</div>
+    </div>
+  `;
+
+  // 第2阶段：0.9秒后白光爆发
+  setTimeout(() => {
+    const stage = panel.querySelector('.capture-anim-stage');
+    if (stage) {
+      const flash = document.createElement('div');
+      flash.className = 'pokeball-flash';
+      stage.appendChild(flash);
+    }
+  }, 900);
+
+  // 第3阶段：1.2秒后显示伙伴（从小到大缩放）
+  setTimeout(() => {
+    let shinyBanner = '';
+    if (pet.isShiny) {
+      shinyBanner = `
+        <div class="shiny-banner">
+          <div class="shiny-stars">✨✨✨</div>
+          <div class="shiny-text">🌟 闪光个体！！！🌟</div>
+          <div class="shiny-desc">运气爆棚！资质额外 +10%！</div>
+          <div class="shiny-stars">✨✨✨</div>
+        </div>
+      `;
+    }
+
+    const revealClass = pet.isVariant ? 'capture-variant-shake' : 'capture-reveal';
+    const variantGlow = pet.isVariant ? 'variant-glow' : '';
+
+    panel.innerHTML = `
+      <div class="result-title">🎉 抓捕成功！</div>
+      ${shinyBanner}
+      <div class="${revealClass} ${variantGlow}" style="border-radius:12px;">
+        ${renderPetDetailCard(pet)}
+      </div>
+      <div class="capture-bottom-actions">
+        <button class="btn btn-small" style="background:#555;padding:8px 20px" onclick="closeCaptureResult()">关闭</button>
+        <button class="btn btn-small" style="background:#3498db;padding:8px 20px" onclick="captureAgain()">🔴 消耗1个精灵球再次探索</button>
       </div>
     `;
-  }
 
-  panel.innerHTML = `
-    <div class="result-title">🎉 抓捕成功！</div>
-    ${shinyBanner}
-    ${renderPetDetailCard(pet)}
-  `;
+    // 异色时面板抖动
+    if (pet.isVariant) {
+      panel.classList.add('variant-window-shake');
+      setTimeout(() => panel.classList.remove('variant-window-shake'), 600);
+    }
+
+    // 动画完成，解锁（闪光横幅+缩放完成后）
+    const unlockDelay = pet.isShiny ? 1200 : 800;
+    setTimeout(() => { captureAnimLock = false; }, unlockDelay);
+  }, 1200);
+}
+
+function closeCaptureResult() {
+  document.getElementById('capture-result-overlay').classList.add('hidden');
+}
+
+function captureAgain() {
+  if (!lastCaptureSceneIds) return;
+  if (GameState.pokeball <= 0) {
+    showSaveToast('❌ 精灵球不足！');
+    return;
+  }
+  if (captureAnimLock) return;
+  const pet = capturePet(lastCaptureSceneIds);
+  if (!pet) {
+    showSaveToast('❌ 抓捕失败！');
+    return;
+  }
+  // 不关闭面板，直接重新播放动画
+  showCaptureResult(pet);
+  refreshCapturePage();
+  updateFooter();
+  saveGame();
 }
 
 // ========== 繁育页 ==========
