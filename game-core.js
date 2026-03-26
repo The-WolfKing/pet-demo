@@ -253,35 +253,50 @@ function breed(father, mother) {
   father.lifeCap -= CONFIG.LIFE_PER_BREED;
   mother.lifeCap -= CONFIG.LIFE_PER_BREED;
 
+  // ★ 种类 & 外形随母系
   const speciesId = mother.speciesId;
   const species = mother.species;
-  const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
-  const childQuality = Math.max(father.quality, mother.quality);
-  const q = QUALITY[childQuality];
-  const tmpl = TYPE_TEMPLATE[species.type];
 
+  // ★ 品质随母系（不取max了！）
+  const childQuality = mother.quality;
+
+  // ★ 代数 = max(父,母) + 1
+  const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
+
+  // ★ 资质上限：不受品质限制！使用传说系数(1.46)作为理论极限
+  // 这样绿色宠物通过多代繁育也能趋近红色资质
+  const tmpl = TYPE_TEMPLATE[species.type];
+  const legendCoeff = QUALITY[5].coeff; // 1.46 传说系数
   const genCoeff = CONFIG.GEN_CAP_COEFFS[childGen] || 1.0;
   const cap = {
-    atk: Math.floor(tmpl.atk * q.coeff * genCoeff),
-    def: Math.floor(tmpl.def * q.coeff * genCoeff),
-    hp:  Math.floor(tmpl.hp  * q.coeff * genCoeff),
+    atk: Math.floor(tmpl.atk * legendCoeff * genCoeff),
+    def: Math.floor(tmpl.def * legendCoeff * genCoeff),
+    hp:  Math.floor(tmpl.hp  * legendCoeff * genCoeff),
   };
 
+  // ★ 代数差惩罚
   const genDiff = Math.abs(father.generation - mother.generation);
   const penalty = CONFIG.GEN_DIFF_PENALTY[Math.min(genDiff, 10)] || 0.4;
 
+  // ★ 核心遗传算法：子代资质 = 父母资质区间随机 × 0.95 × 代数差惩罚 + 代数成长加成
   const potential = {};
   for (const stat of ['atk', 'def', 'hp']) {
-    const minV = Math.min(father.potential[stat], mother.potential[stat]);
-    const maxV = Math.max(father.potential[stat], mother.potential[stat]);
+    const fVal = father.potential[stat];
+    const mVal = mother.potential[stat];
+    const minV = Math.min(fVal, mVal);
+    const maxV = Math.max(fVal, mVal);
     let val = randInt(minV, maxV);
     val = Math.floor(val * CONFIG.BREED_DECAY * penalty);
-    val += Math.floor(tmpl[stat] * q.coeff * genCoeff * 0.08 * childGen);
+    // 代数成长加成：每代额外获得理论上限的8%，保证代数增长有意义
+    val += Math.floor(tmpl[stat] * legendCoeff * genCoeff * 0.08 * childGen);
     val = clamp(val, 1, cap[stat]);
     potential[stat] = val;
   }
 
+  // ★ 技能：从母系种类技能池随机2~4个
   const skillCount = randInt(2, 4);
+
+  // ★ 词条继承：父母各取一条 + 概率获得繁育专属词条
   const childAffixes = [];
   if (father.affixes.length > 0) {
     const fa = pick(father.affixes.filter(a => !a.isGen10));
@@ -296,14 +311,21 @@ function breed(father, mother) {
     childAffixes.push({ ...ba, value: randInt(ba.min, ba.max), isBreedAffix: true, isGen10: false });
   }
 
+  // ★ 性别随机
   const gender = Math.random() < 0.5 ? 'male' : 'female';
+
+  // ★ 闪光遗传
   let shinyChance = 0;
   if (father.isShiny) shinyChance += CONFIG.SHINY_PARENT_BONUS;
   if (mother.isShiny) shinyChance += CONFIG.SHINY_PARENT_BONUS;
   const isShiny = Math.random() < shinyChance;
+
+  // ★ 异色（5%概率，仅通过繁育产生，异色不可再繁育）
   const isVariant = Math.random() < CONFIG.VARIANT_CHANCE;
   let variantName = null;
   if (isVariant) { variantName = pick(VARIANT_NAMES[speciesId] || ['异色体']); }
+
+  // ★ 光环（不遗传，独立判定）
   let aura = null;
   if (Math.random() < CONFIG.AURA_CHANCE) {
     const possibleAuras = AURAS.filter(a => a.speciesIds.includes(speciesId));

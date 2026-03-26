@@ -1608,6 +1608,101 @@ body {
   color: var(--text2);
 }
 
+/* ========== 统一伙伴详情卡片 (pdc) ========== */
+.pdc-card {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.pdc-emoji {
+  text-align: center;
+  font-size: 64px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.pdc-shiny {
+  position: absolute;
+  font-size: 24px;
+  top: 0;
+  right: calc(50% - 50px);
+}
+.pdc-name {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.pdc-badges {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.pdc-quality-badge {
+  color: #fff;
+  padding: 2px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.pdc-type {
+  font-size: 12px;
+  color: var(--text2);
+}
+.pdc-info-line {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.pdc-tags {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.pdc-tags .tag {
+  margin: 0 3px;
+}
+.pdc-extra {
+  background: #0f1923;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.pdc-section-title {
+  font-size: 12px;
+  color: var(--text2);
+  margin: 12px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--bg3);
+}
+.pdc-stats {
+  margin-bottom: 4px;
+}
+.pdc-exp-life {
+  margin: 8px 0;
+}
+.pdc-skills {
+  margin: 6px 0;
+}
+.pdc-affixes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+.pdc-affix-item {
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--bg2);
+  border-radius: 4px;
+}
+
 /* 详情面板放生按钮 */
 .detail-release-btn {
   display: inline-block;

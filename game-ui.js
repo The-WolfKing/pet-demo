@@ -117,6 +117,55 @@ function renderExpBar(pet) {
 function renderStatBars(pet) { return renderCompactStats(pet); }
 function renderCombatStats(pet) { return renderCompactStats(pet); }
 
+// ========== ★ 统一伙伴详情卡片（用于抓捕/繁育/进化结果展示） ==========
+function renderPetDetailCard(pet, extraInfo) {
+  const q = QUALITY[pet.quality];
+  const gi = pet.gender === 'male' ? '♂' : '♀';
+  const pct = getPotentialPercent(pet);
+  const cs = getCombatStats(pet);
+  const needed = pet.level >= CONFIG.MAX_LEVEL ? 1 : getExpForLevel(pet.level);
+  const expPct = pet.level >= CONFIG.MAX_LEVEL ? 100 : Math.min(100, ((pet.exp || 0) / needed * 100));
+  const lifePct = Math.min(100, (pet.life / pet.lifeCap * 100));
+
+  let tagsHtml = '';
+  if (pet.isShiny) tagsHtml += '<span class="tag tag-shiny">✨闪光</span>';
+  if (pet.isVariant) tagsHtml += `<span class="tag tag-variant">🎨${pet.variantName||'异色'}</span>`;
+  if (pet.aura) tagsHtml += `<span class="tag tag-aura">💫${pet.aura.name}</span>`;
+  if (pet.hasGen10Affix) tagsHtml += '<span class="tag tag-gen10">👑十代之证</span>';
+
+  return `
+    <div class="pdc-card">
+      <div class="pdc-emoji">${pet.species.emoji}${pet.isShiny ? '<span class="pdc-shiny">✨</span>' : ''}</div>
+      <div class="pdc-name" style="color:${q.color}">${pet.name} <span style="color:${pet.gender==='male'?'#3498db':'#e74c3c'}">${gi}</span></div>
+      <div class="pdc-badges">
+        <span class="pdc-quality-badge" style="background:${q.color}">${q.name}</span>
+        <span class="pdc-type">${TYPE_TEMPLATE[pet.species.type].icon} ${TYPE_TEMPLATE[pet.species.type].name}</span>
+      </div>
+      <div class="pdc-info-line">Lv.${pet.level} | G${pet.generation} | 进化 ${pet.evoStage}/${pet.species.maxEvo}段 | 资质 ${pct}%</div>
+      ${tagsHtml ? `<div class="pdc-tags">${tagsHtml}</div>` : ''}
+      ${extraInfo ? `<div class="pdc-extra">${extraInfo}</div>` : ''}
+      <div class="pdc-section-title">⚔ 属性 (Lv.${pet.level})</div>
+      <div class="pdc-stats">
+        ${renderUnifiedStats(pet)}
+      </div>
+      <div class="pdc-exp-life">
+        <div class="exp-bar-wrap"><span class="exp-label">EXP</span><div class="stat-track"><div class="stat-fill exp" style="width:${expPct}%"></div></div><span class="stat-val">${pet.level>=CONFIG.MAX_LEVEL ? 'MAX' : `${pet.exp||0}/${needed}`}</span></div>
+        <div class="exp-bar-wrap"><span class="exp-label" style="color:#e74c3c">❤ 寿命:</span><span class="stat-val" style="margin-left:4px">${pet.life}</span><div class="stat-track"><div class="stat-fill" style="width:${lifePct}%;background:linear-gradient(90deg,#e74c3c,#c0392b)"></div></div><span class="stat-val">上限 ${pet.lifeCap}</span></div>
+      </div>
+      <div class="pdc-section-title">⚔ 技能 (${pet.skills.length})</div>
+      <div class="pdc-skills">${renderSkillIcons(pet.skills, pet.evoStage > 0)}</div>
+      ${pet.affixes.length > 0 ? `
+        <div class="pdc-section-title">📦 词条 (${pet.affixes.length})</div>
+        <div class="pdc-affixes">${pet.affixes.map(a => {
+          const color = getAffixColor(a);
+          const valStr = typeof a.value === 'number' ? (a.value > 0 ? '+' : '') + a.value : a.value;
+          return `<div class="pdc-affix-item" style="border-left:3px solid ${color.color || color};padding-left:8px">${a.name} ${valStr}</div>`;
+        }).join('')}</div>
+      ` : ''}
+    </div>
+  `;
+}
+
 // ========== 通用：渲染伙伴卡片 ==========
 function renderPetCard(pet, onClick, showActions) {
   const q = QUALITY[pet.quality];
@@ -398,29 +447,9 @@ document.getElementById('btn-capture').addEventListener('click', () => {
 function showCaptureResult(pet) {
   const panel = document.getElementById('capture-result');
   panel.classList.remove('hidden');
-  const q = QUALITY[pet.quality];
   panel.innerHTML = `
     <div class="result-title">🎉 抓捕成功！</div>
-    <div style="text-align:center;margin-bottom:10px;">
-      <span style="font-size:48px">${pet.species.emoji}</span>
-      ${pet.isShiny ? '<span style="font-size:24px">✨</span>' : ''}
-    </div>
-    <div style="text-align:center;font-size:18px;font-weight:bold;color:${q.color}">
-      ${pet.name} ${pet.gender==='male'?'♂':'♀'}
-    </div>
-    <div style="text-align:center;color:#8899aa;margin:5px 0;">
-      <span style="background:${q.color};color:#fff;padding:2px 10px;border-radius:10px;font-size:12px">${q.name}</span>
-      ${pet.isShiny ? '<span class="tag tag-shiny" style="margin-left:5px">✨闪光</span>' : ''}
-    </div>
-    <div style="margin:15px auto;max-width:300px;">
-      ${renderStatBars(pet)}
-    </div>
-    <div style="margin:10px auto;max-width:300px;">
-      ${renderSkillIcons(pet.skills, false)}
-    </div>
-    <div style="text-align:center;font-size:12px;color:#8899aa;margin-top:8px;">
-      词条: ${renderAffixes(pet.affixes)}
-    </div>
+    ${renderPetDetailCard(pet)}
   `;
 }
 
@@ -568,40 +597,23 @@ function showBreedResultOverlay(result) {
   const content = document.getElementById('breed-result-content');
   overlay.classList.remove('hidden');
   const child = result.child;
-  const q = QUALITY[child.quality];
-  const pct = getPotentialPercent(child);
 
-  let specialTags = '';
-  if (child.isShiny) specialTags += '✨ <strong style="color:#f1c40f">闪光个体！</strong><br>';
-  if (child.isVariant) specialTags += `🎨 <strong style="color:#9b59b6">异色变异！→ ${child.variantName}</strong><br>`;
-  if (child.aura) specialTags += `💫 <strong style="color:#1abc9c">获得光环：${child.aura.name} - ${child.aura.desc}</strong><br>`;
-  if (child.generation >= 10) specialTags += '👑 <strong style="color:#e74c3c">第十代！获得十代之证词条！</strong><br>';
+  let extraInfo = '';
+  if (child.isShiny) extraInfo += '✨ <strong style="color:#f1c40f">闪光个体！</strong><br>';
+  if (child.isVariant) extraInfo += `🎨 <strong style="color:#9b59b6">异色变异！→ ${child.variantName}</strong><br>`;
+  if (child.aura) extraInfo += `💫 <strong style="color:#1abc9c">获得光环：${child.aura.name} - ${child.aura.desc}</strong><br>`;
+  if (child.generation >= 10) extraInfo += '👑 <strong style="color:#e74c3c">第十代！获得十代之证词条！</strong><br>';
   const breedAffixes = child.affixes.filter(a => a.isBreedAffix);
   if (breedAffixes.length > 0) {
-    specialTags += `🔮 <strong style="color:#27ae60">获得繁育词条：${breedAffixes.map(a=>a.name+'+'+a.value).join(', ')}</strong><br>`;
+    extraInfo += `🔮 <strong style="color:#27ae60">获得繁育词条：${breedAffixes.map(a=>a.name+'+'+a.value).join(', ')}</strong><br>`;
+  }
+  if (result.genDiff > 0) {
+    extraInfo += `<span style="color:#e67e22">⚠ 代差惩罚: ×${result.penalty}</span>`;
   }
 
   content.innerHTML = `
-    <div class="result-title">� 恭喜！繁育成功！</div>
-    ${specialTags ? `<div style="background:#0f1923;padding:10px;border-radius:8px;margin-bottom:12px;text-align:center;font-size:13px;line-height:2">${specialTags}</div>` : ''}
-    <div style="text-align:center;margin-bottom:10px;font-size:56px">${child.species.emoji}</div>
-    <div style="text-align:center;font-size:20px;font-weight:bold;color:${q.color}">
-      ${child.name} ${child.gender==='male'?'♂':'♀'} <span style="font-size:12px;color:#f1c40f">G${child.generation}</span>
-    </div>
-    <div style="text-align:center;margin:5px 0;font-size:12px;color:#8899aa">
-      <span style="background:${q.color};color:#fff;padding:2px 10px;border-radius:10px">${q.name}</span>
-      总资质: ${pct}% | 技能: ${child.skills.length}个
-      ${result.genDiff > 0 ? ` | 代差惩罚: ×${result.penalty}` : ''}
-    </div>
-    <div style="margin:12px auto;max-width:350px;">
-      ${renderStatBars(child)}
-    </div>
-    <div style="margin:8px auto;max-width:350px;">
-      ${renderSkillIcons(child.skills, child.evoStage > 0)}
-    </div>
-    <div style="font-size:12px;text-align:center;margin-top:8px;">
-      词条: ${renderAffixes(child.affixes)}
-    </div>
+    <div class="result-title">🐣 恭喜！繁育成功！</div>
+    ${renderPetDetailCard(child, extraInfo || null)}
   `;
 }
 
@@ -676,24 +688,22 @@ function showEvolveResult(result) {
 
   const newSkill = a.skills.length > b.skills.length ? a.skills[a.skills.length-1] : null;
 
-  panel.innerHTML = `
-    <div class="result-title">⚡ 进化成功！ → 第${a.evoStage}段</div>
-    <div class="evolve-before-after">
-      <div class="evolve-box">
-        <div style="font-size:12px;color:#8899aa;margin-bottom:8px">进化前</div>
-        <div>ATK: ${b.potential.atk} / ${b.potentialCap.atk}</div>
-        <div>DEF: ${b.potential.def} / ${b.potentialCap.def}</div>
-        <div>HP: ${b.potential.hp} / ${b.potentialCap.hp}</div>
-      </div>
-      <div style="font-size:30px;color:#f1c40f">→</div>
-      <div class="evolve-box">
-        <div style="font-size:12px;color:#e67e22;margin-bottom:8px">进化后</div>
-        <div style="color:#27ae60">ATK: ${a.potential.atk} / ${a.potentialCap.atk} <span style="font-size:10px">(+${a.potential.atk-b.potential.atk})</span></div>
-        <div style="color:#27ae60">DEF: ${a.potential.def} / ${a.potentialCap.def} <span style="font-size:10px">(+${a.potential.def-b.potential.def})</span></div>
-        <div style="color:#27ae60">HP: ${a.potential.hp} / ${a.potentialCap.hp} <span style="font-size:10px">(+${a.potential.hp-b.potential.hp})</span></div>
+  let extraInfo = `
+    <div style="display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin:4px 0">
+      <div style="font-size:11px;color:#8899aa">
+        资质变化:
+        ATK <span style="color:#27ae60">${b.potential.atk}→${a.potential.atk}(+${a.potential.atk-b.potential.atk})</span> |
+        DEF <span style="color:#27ae60">${b.potential.def}→${a.potential.def}(+${a.potential.def-b.potential.def})</span> |
+        HP <span style="color:#27ae60">${b.potential.hp}→${a.potential.hp}(+${a.potential.hp-b.potential.hp})</span>
       </div>
     </div>
-    ${newSkill ? `<div style="text-align:center;color:#e67e22;font-weight:bold;font-size:14px">🆕 获得新技能：${newSkill}</div>` : ''}
+    <div style="font-size:11px;color:#f1c40f">上限提升 +10%</div>
+    ${newSkill ? `<div style="color:#e67e22;font-weight:bold;font-size:13px">🆕 获得新技能：${newSkill}</div>` : ''}
+  `;
+
+  panel.innerHTML = `
+    <div class="result-title">⚡ 进化成功！ → 第${a.evoStage}段</div>
+    ${renderPetDetailCard(pet, extraInfo)}
   `;
 
   // 刷新面板
