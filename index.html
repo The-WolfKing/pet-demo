@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>伙伴繁育与养成系统 Demo v2</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- 顶部导航 -->
+  <header class="header">
+    <h1>🐾 伙伴繁育与养成系统 Demo</h1>
+    <p class="subtitle">《世界之光》系统策划演示 v2.0</p>
+  </header>
+
+  <!-- Tab导航 -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="inventory">📦 伙伴</button>
+    <button class="tab" data-tab="capture">🎯 抓捕</button>
+    <button class="tab" data-tab="breed">💕 繁育</button>
+    <button class="tab" data-tab="evolve">⚡ 进化</button>
+    <button class="tab" data-tab="dungeon">⚔️ 副本</button>
+  </nav>
+
+  <!-- 内容区域 -->
+  <main class="content">
+    <!-- ===== 伙伴仓库页（两栏：左列表+右详情） ===== -->
+    <section id="tab-inventory" class="tab-content active">
+      <!-- 顶部工具栏 -->
+      <div class="inv-toolbar">
+        <div class="inv-toolbar-left">
+          <span id="pet-count" class="inv-count">� 0/50</span>
+          <select id="filter-quality" class="inv-select" onchange="refreshInventory()">
+            <option value="all">全部品质</option>
+            <option value="5">传说</option>
+            <option value="4">史诗</option>
+            <option value="3">稀有</option>
+            <option value="2">精良</option>
+            <option value="1">普通</option>
+          </select>
+          <select id="filter-type" class="inv-select" onchange="refreshInventory()">
+            <option value="all">全部类型</option>
+            <option value="attack">⚔️ 战斗型</option>
+            <option value="defense">🛡️ 防御型</option>
+            <option value="balance">⚖️ 均衡型</option>
+          </select>
+          <select id="sort-mode" class="inv-select" onchange="refreshInventory()">
+            <option value="potential-desc">资质 ↓</option>
+            <option value="potential-asc">资质 ↑</option>
+            <option value="level-desc">等级 ↓</option>
+            <option value="gen-desc">代数 ↓</option>
+            <option value="quality-desc">品质 ↓</option>
+          </select>
+        </div>
+        <div class="inv-toolbar-right">
+          <button class="btn btn-small" style="background:#c0392b" onclick="openBatchRelease()">🗑️ 批量放生</button>
+          <button class="btn btn-small" style="background:#8e44ad" onclick="showEncyclopedia()">📖 图鉴</button>
+        </div>
+      </div>
+      <!-- 两栏布局 -->
+      <div class="inv-layout">
+        <!-- 左：伙伴网格 -->
+        <div class="inv-left">
+          <div id="inventory-grid" class="inv-grid"></div>
+          <div class="empty-tip" id="empty-tip">
+            还没有伙伴，去<a href="#" onclick="switchTab('capture')">抓捕</a>一只吧！
+          </div>
+        </div>
+        <!-- 右：详情面板 -->
+        <div class="inv-right" id="inv-detail-panel">
+          <div class="inv-detail-empty" id="inv-detail-empty">
+            <div style="font-size:48px;margin-bottom:10px">🐾</div>
+            <div>选择一只伙伴查看详情</div>
+          </div>
+          <div id="inv-detail-content" class="hidden">
+            <!-- 顶部：名称+品质 -->
+            <div id="detail-header"></div>
+            <!-- 属性区域 -->
+            <div id="detail-stats"></div>
+            <!-- 技能 -->
+            <div id="detail-skills"></div>
+            <!-- 词条 -->
+            <div id="detail-affixes"></div>
+            <!-- 雷达图 -->
+            <div id="detail-radar-wrap">
+              <canvas id="radar-chart" width="240" height="240"></canvas>
+            </div>
+            <!-- 血统 -->
+            <div id="detail-lineage"></div>
+            <!-- 操作按钮 -->
+            <div id="detail-actions"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 抓捕页（场景选择） ===== -->
+    <section id="tab-capture" class="tab-content">
+      <div class="section-header">
+        <h2>🌍 大世界探索</h2>
+        <span class="pokeball-info">🔴 精灵球: <strong id="pokeball-count-cap">5</strong>/<strong>5</strong> | 恢复: <span id="pokeball-timer">已满</span></span>
+      </div>
+      <div class="capture-area">
+        <div class="scene-select">
+          <h3>选择探索场景</h3>
+          <div id="scene-list" class="scene-grid"></div>
+        </div>
+        <div id="scene-species-preview" class="scene-species-preview hidden">
+          <h4 id="scene-preview-title">可能遇到的伙伴：</h4>
+          <div id="scene-species-icons" class="scene-species-icons"></div>
+        </div>
+        <button id="btn-capture" class="btn btn-primary btn-large" disabled>
+          🎯 消耗1个精灵球探索！
+        </button>
+        <div id="capture-result" class="result-panel hidden"></div>
+      </div>
+    </section>
+
+    <!-- ===== 繁育页 ===== -->
+    <section id="tab-breed" class="tab-content">
+      <div class="section-header"><h2>繁育中心</h2></div>
+      <div class="breed-area">
+        <div class="breed-parents">
+          <div class="parent-slot" id="father-slot">
+            <h3>♂ 父系</h3>
+            <div class="slot-content" id="father-content">
+              <p class="slot-placeholder">点击选择</p>
+            </div>
+          </div>
+          <div class="breed-middle">
+            <div class="breed-icon">💕</div>
+            <div id="breed-preview" class="breed-preview hidden">
+              <div class="preview-title">预计后代资质区间</div>
+              <div id="preview-atk" class="preview-row"></div>
+              <div id="preview-def" class="preview-row"></div>
+              <div id="preview-hp" class="preview-row"></div>
+            </div>
+          </div>
+          <div class="parent-slot" id="mother-slot">
+            <h3>♀ 母系</h3>
+            <div class="slot-content" id="mother-content">
+              <p class="slot-placeholder">点击选择</p>
+            </div>
+          </div>
+        </div>
+        <div class="breed-cost">
+          消耗: 🍎 欲望之果 ×1 | 双方寿命上限各 -40
+        </div>
+        <button id="btn-breed" class="btn btn-accent btn-large" disabled>
+          开始繁育
+        </button>
+        <div id="breed-result" class="result-panel hidden"></div>
+      </div>
+      <!-- 选择弹窗 -->
+      <div id="select-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modal-title">选择伙伴</h3>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div id="modal-pet-list" class="pet-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 进化页 ===== -->
+    <section id="tab-evolve" class="tab-content">
+      <div class="section-header"><h2>进化工坊</h2></div>
+      <div id="evolve-area">
+        <div id="evolve-pet-list" class="pet-grid"></div>
+        <div id="evolve-panel" class="hidden">
+          <div id="evolve-detail"></div>
+          <button id="btn-evolve" class="btn btn-warning btn-large">
+            ⚡ 执行进化
+          </button>
+          <div id="evolve-result" class="result-panel hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 副本页 ===== -->
+    <section id="tab-dungeon" class="tab-content">
+      <div class="section-header"><h2>⚔️ 副本挑战</h2></div>
+      <div class="dungeon-tabs">
+        <button class="dungeon-tab active" data-dtype="team" onclick="switchDungeonTab('team')">🛡️ 团队副本</button>
+        <button class="dungeon-tab" data-dtype="tower" onclick="switchDungeonTab('tower')">🗼 爬塔挑战</button>
+      </div>
+      <div id="dungeon-team" class="dungeon-panel">
+        <div class="dungeon-info">
+          <p>选择3只伙伴组队，挑战敌人！通关奖励 <strong style="color:#e74c3c">🍎 欲望之果</strong></p>
+        </div>
+        <div class="team-select">
+          <h4>选择队伍 (3只)</h4>
+          <div id="team-select-list" class="pet-grid-mini"></div>
+          <div class="selected-team" id="selected-team"></div>
+        </div>
+        <div class="floor-select">
+          <h4>选择层数 <span id="team-floor-info" style="color:#f1c40f"></span></h4>
+          <div id="team-floor-list" class="floor-list"></div>
+        </div>
+        <button id="btn-team-battle" class="btn btn-accent btn-large" disabled>⚔️ 开始战斗</button>
+        <div id="team-battle-log" class="battle-log hidden"></div>
+      </div>
+      <div id="dungeon-tower" class="dungeon-panel hidden">
+        <div class="dungeon-info">
+          <p>选择1只伙伴，单挑BOSS！通关奖励 <strong style="color:#e67e22">🧪 进化石</strong></p>
+        </div>
+        <div class="team-select">
+          <h4>选择出战伙伴</h4>
+          <div id="tower-pet-list" class="pet-grid-mini"></div>
+        </div>
+        <div class="floor-select">
+          <h4>选择层数 <span id="tower-floor-info" style="color:#f1c40f"></span></h4>
+          <div id="tower-floor-list" class="floor-list"></div>
+        </div>
+        <button id="btn-tower-battle" class="btn btn-warning btn-large" disabled>🗼 挑战BOSS</button>
+        <div id="tower-battle-log" class="battle-log hidden"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 底部状态栏 -->
+  <footer class="footer">
+    <span>🍎 欲望之果: <strong id="fruit-count">5</strong></span>
+    <span>🧪 进化石: <strong id="evo-stone-count">3</strong></span>
+    <span>🔴 精灵球: <strong id="pokeball-count">5</strong>/5 <span id="pokeball-regen-footer" style="color:#8899aa;font-size:11px"></span></span>
+    <span id="gen-stats"></span>
+    <button class="btn btn-small" style="background:#27ae60" onclick="addFreeResources()">📺 看广告领资源</button>
+    <button class="btn btn-small" style="background:#2980b9" onclick="manualSave()">💾 存档</button>
+    <button class="btn btn-small" style="background:#c0392b" onclick="resetGameConfirm()">🗑️ 重置</button>
+  </footer>
+</div>
+
+<!-- 图鉴弹窗 -->
+<div id="encyclopedia-modal" class="modal hidden">
+  <div class="modal-content modal-lg">
+    <div class="modal-header">
+      <h3>📖 伙伴图鉴</h3>
+      <button class="modal-close" onclick="closeEncyclopedia()">✕</button>
+    </div>
+    <div id="encyclopedia-content" class="encyclopedia-grid"></div>
+  </div>
+</div>
+
+<!-- 繁育倒计时弹窗 -->
+<div id="breed-timer-overlay" class="overlay hidden">
+  <div class="overlay-box breed-timer-box">
+    <div class="breed-timer-title">💕 繁育进行中...</div>
+    <div class="breed-timer-egg">🥚</div>
+    <div class="breed-timer-countdown" id="breed-countdown">10</div>
+    <div class="breed-timer-bar-track">
+      <div class="breed-timer-bar-fill" id="breed-timer-fill"></div>
+    </div>
+    <div class="breed-timer-hint">请耐心等待...</div>
+  </div>
+</div>
+
+<!-- 繁育结果弹窗 -->
+<div id="breed-result-overlay" class="overlay hidden">
+  <div class="overlay-box breed-result-box">
+    <div id="breed-result-content"></div>
+    <button class="btn btn-primary" onclick="closeBreedResult()">确认</button>
+  </div>
+</div>
+
+<!-- ★ 战斗过程全屏界面 ★ -->
+<div id="battle-arena-overlay" class="overlay hidden">
+  <div class="battle-arena">
+    <!-- 顶部：层数信息 -->
+    <div class="arena-header">
+      <span class="arena-floor" id="arena-floor-label">第1层</span>
+      <span class="arena-round" id="arena-round-label">回合 0</span>
+    </div>
+    <!-- 敌方区域（上方） -->
+    <div class="arena-side arena-enemy" id="arena-enemy-units"></div>
+    <!-- 中间战斗信息 -->
+    <div class="arena-mid">
+      <div class="arena-vs">⚔️</div>
+      <div class="arena-action-text" id="arena-action-text"></div>
+    </div>
+    <!-- 我方区域（下方） -->
+    <div class="arena-side arena-ally" id="arena-ally-units"></div>
+    <!-- 底部日志 -->
+    <div class="arena-log-bar" id="arena-log-bar"></div>
+  </div>
+</div>
+
+<!-- 战斗结果弹窗 -->
+<div id="battle-result-overlay" class="overlay hidden">
+  <div class="overlay-box battle-result-box" id="battle-result-content"></div>
+</div>
+
+<!-- 广告弹窗 -->
+<div id="ad-overlay" class="overlay hidden">
+  <div class="overlay-box ad-box">
+    <div class="ad-title">📺 观看广告</div>
+    <div class="ad-desc">模拟观看30秒广告后获得奖励...</div>
+    <div class="ad-timer" id="ad-timer">3</div>
+    <div class="ad-reward" id="ad-reward" style="display:none">
+      🎉 获得: 🍎×3 + 🧪×2 + 🔴×2
+    </div>
+    <button class="btn btn-primary" id="btn-ad-close" style="display:none" onclick="closeAdOverlay()">领取奖励</button>
+  </div>
+</div>
+
+<!-- 批量放生弹窗 -->
+<div id="batch-release-modal" class="modal hidden">
+  <div class="modal-content modal-lg">
+    <div class="modal-header">
+      <h3>🗑️ 批量放生</h3>
+      <button class="modal-close" onclick="closeBatchRelease()">✕</button>
+    </div>
+    <div class="batch-release-toolbar">
+      <label class="batch-checkbox-label">
+        <input type="checkbox" id="batch-select-all" onchange="batchToggleAll()"> 全选
+      </label>
+      <select id="batch-filter-quality" class="inv-select" onchange="refreshBatchList()">
+        <option value="all">全部品质</option>
+        <option value="1">普通</option>
+        <option value="2">精良</option>
+        <option value="3">稀有</option>
+        <option value="4">史诗</option>
+        <option value="5">传说</option>
+      </select>
+      <span id="batch-selected-count" style="color:#f1c40f;font-size:13px;margin-left:8px">已选: 0</span>
+      <button class="btn btn-small" style="background:#c0392b;margin-left:auto" onclick="confirmBatchRelease()">🗑️ 放生选中</button>
+    </div>
+    <div id="batch-release-list" class="batch-release-grid"></div>
+  </div>
+</div>
+
+<!-- 放生确认弹窗 -->
+<div id="release-confirm-overlay" class="overlay hidden">
+  <div class="overlay-box" style="max-width:400px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px">⚠️</div>
+    <div id="release-confirm-msg" style="font-size:15px;margin-bottom:20px;line-height:1.6"></div>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button class="btn btn-small" style="background:#555;padding:8px 24px" onclick="cancelRelease()">取消</button>
+      <button class="btn btn-small" style="background:#c0392b;padding:8px 24px" onclick="executeRelease()">确认放生</button>
+    </div>
+  </div>
+</div>
+
+<script src="game-data.js"></script>
+<script src="game-core.js"></script>
+<script src="game-ui.js"></script>
+</body>
+</html>
