@@ -631,15 +631,20 @@ function showSelectModal(gender) {
 
     noLife.forEach(pet => {
       const card = renderPetCard(pet, null);
-      card.style.opacity = '0.4';
-      card.style.filter = 'grayscale(80%)';
+      card.style.opacity = '0.35';
+      card.style.filter = 'grayscale(100%)';
       card.style.pointerEvents = 'none';
       card.style.position = 'relative';
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.7);color:#e74c3c;font-size:13px;font-weight:bold;padding:4px 12px;border-radius:8px;white-space:nowrap;z-index:2;';
-      overlay.textContent = '💀 寿命不足';
-      card.style.position = 'relative';
-      card.appendChild(overlay);
+      card.style.overflow = 'hidden';
+      // 全卡片遮罩
+      const mask = document.createElement('div');
+      mask.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:2;display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:12px;';
+      mask.innerHTML = `
+        <div style="font-size:36px;margin-bottom:6px">💀</div>
+        <div style="color:#e74c3c;font-size:16px;font-weight:bold;text-shadow:0 0 8px rgba(231,76,60,0.6)">寿命不足</div>
+        <div style="color:#8899aa;font-size:11px;margin-top:2px">无法参与繁育</div>
+      `;
+      card.appendChild(mask);
       list.appendChild(card);
     });
   }
