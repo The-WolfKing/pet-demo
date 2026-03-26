@@ -57,7 +57,16 @@ function renderAffixes(affixes) {
   if (!affixes || affixes.length === 0) return '<span class="affix-white">无</span>';
   return affixes.map(a => {
     const color = getAffixColor(a);
-    const valStr = typeof a.value === 'number' ? (a.value > 0 ? '+' : '') + a.value : a.value;
+    let valStr = '';
+    if (a.isMixed) {
+      valStr = `+${a.buffValue}${a.buffType==='pct'?'%':''}/-${Math.abs(a.debuffValue)}${a.debuffType==='pct'?'%':''}`;
+    } else if (a.isGen10) {
+      valStr = '全属性+18%';
+    } else if (a.type === 'pct') {
+      valStr = (a.value > 0 ? '+' : '') + a.value + '%';
+    } else {
+      valStr = typeof a.value === 'number' ? (a.value > 0 ? '+' : '') + a.value : a.value;
+    }
     return `<span style="color:${color}">${a.name} ${valStr}</span>`;
   }).join(' ');
 }
@@ -158,8 +167,24 @@ function renderPetDetailCard(pet, extraInfo) {
         <div class="pdc-section-title">📦 词条 (${pet.affixes.length})</div>
         <div class="pdc-affixes">${pet.affixes.map(a => {
           const color = getAffixColor(a);
-          const valStr = typeof a.value === 'number' ? (a.value > 0 ? '+' : '') + a.value : a.value;
-          return `<div class="pdc-affix-item" style="border-left:3px solid ${color.color || color};padding-left:8px">${a.name} ${valStr}</div>`;
+          let desc = '';
+          if (a.isMixed) {
+            // 混合词条
+            const buffStr = a.buffType === 'pct' ? `${a.buffStat==='all'?'全属性':a.buffStat.toUpperCase()}+${a.buffValue}%` : `${a.buffStat.toUpperCase()}+${a.buffValue}`;
+            const debuffStr = a.debuffType === 'pct' ? `${a.debuffStat==='all'?'全属性':a.debuffStat.toUpperCase()}${a.debuffValue}%` : `${a.debuffStat.toUpperCase()}${a.debuffValue}`;
+            desc = `<span style="color:#27ae60">${buffStr}</span> / <span style="color:#e74c3c">${debuffStr}</span>`;
+          } else if (a.isGen10) {
+            desc = '<span style="color:#e74c3c">全属性 +18%</span>';
+          } else if (a.type === 'pct') {
+            const sign = a.value > 0 ? '+' : '';
+            const statLabel = a.stat === 'all' ? '全属性' : a.stat.toUpperCase();
+            desc = `<span style="color:${a.value>0?'#27ae60':'#e74c3c'}">${statLabel} ${sign}${a.value}%</span>`;
+          } else {
+            const sign = a.value > 0 ? '+' : '';
+            const statLabel = a.stat === 'all' ? '全属性' : a.stat.toUpperCase();
+            desc = `<span style="color:${a.value>0?'#27ae60':'#e74c3c'}">${statLabel} ${sign}${a.value}</span>`;
+          }
+          return `<div class="pdc-affix-item" style="border-left:3px solid ${color.color || color};padding-left:8px">${a.name}：${desc}</div>`;
         }).join('')}</div>
       ` : ''}
     </div>
@@ -447,8 +472,22 @@ document.getElementById('btn-capture').addEventListener('click', () => {
 function showCaptureResult(pet) {
   const panel = document.getElementById('capture-result');
   panel.classList.remove('hidden');
+
+  let shinyBanner = '';
+  if (pet.isShiny) {
+    shinyBanner = `
+      <div class="shiny-banner">
+        <div class="shiny-stars">✨✨✨</div>
+        <div class="shiny-text">🌟 闪光个体！！！🌟</div>
+        <div class="shiny-desc">运气爆棚！资质额外 +10%！</div>
+        <div class="shiny-stars">✨✨✨</div>
+      </div>
+    `;
+  }
+
   panel.innerHTML = `
     <div class="result-title">🎉 抓捕成功！</div>
+    ${shinyBanner}
     ${renderPetDetailCard(pet)}
   `;
 }

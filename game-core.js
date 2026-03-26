@@ -53,11 +53,55 @@ const COMBAT_SCALE = { atk: 16.0, def: 13.0, hp: 26.0 };
 function getCombatStats(pet) {
   const base = QUALITY_BASE_STATS[pet.quality] || QUALITY_BASE_STATS[1];
   const evoBonus = 1 + (pet.evoStage * 0.1);
-  return {
-    atk: Math.floor((base.atk + (pet.potential.atk / 1000) * COMBAT_SCALE.atk * pet.level) * evoBonus),
-    def: Math.floor((base.def + (pet.potential.def / 1000) * COMBAT_SCALE.def * pet.level) * evoBonus),
-    hp:  Math.floor((base.hp  + (pet.potential.hp  / 1000) * COMBAT_SCALE.hp  * pet.level) * evoBonus),
-  };
+
+  // 基础战斗值（未算词条）
+  let atk = Math.floor((base.atk + (pet.potential.atk / 1000) * COMBAT_SCALE.atk * pet.level) * evoBonus);
+  let def = Math.floor((base.def + (pet.potential.def / 1000) * COMBAT_SCALE.def * pet.level) * evoBonus);
+  let hp  = Math.floor((base.hp  + (pet.potential.hp  / 1000) * COMBAT_SCALE.hp  * pet.level) * evoBonus);
+
+  // ★ 应用词条效果
+  if (pet.affixes && pet.affixes.length > 0) {
+    // 先收集固定值和百分比加成
+    let flatBonus = { atk: 0, def: 0, hp: 0 };
+    let pctBonus = { atk: 0, def: 0, hp: 0 };
+
+    for (const af of pet.affixes) {
+      if (af.isMixed) {
+        // 混合词条：buff + debuff
+        if (af.buffType === 'flat') {
+          if (af.buffStat === 'all') { flatBonus.atk += af.buffValue; flatBonus.def += af.buffValue; flatBonus.hp += af.buffValue; }
+          else flatBonus[af.buffStat] = (flatBonus[af.buffStat] || 0) + af.buffValue;
+        } else {
+          if (af.buffStat === 'all') { pctBonus.atk += af.buffValue; pctBonus.def += af.buffValue; pctBonus.hp += af.buffValue; }
+          else pctBonus[af.buffStat] = (pctBonus[af.buffStat] || 0) + af.buffValue;
+        }
+        if (af.debuffType === 'flat') {
+          if (af.debuffStat === 'all') { flatBonus.atk += af.debuffValue; flatBonus.def += af.debuffValue; flatBonus.hp += af.debuffValue; }
+          else flatBonus[af.debuffStat] = (flatBonus[af.debuffStat] || 0) + af.debuffValue;
+        } else {
+          if (af.debuffStat === 'all') { pctBonus.atk += af.debuffValue; pctBonus.def += af.debuffValue; pctBonus.hp += af.debuffValue; }
+          else pctBonus[af.debuffStat] = (pctBonus[af.debuffStat] || 0) + af.debuffValue;
+        }
+      } else if (af.isGen10) {
+        // 十代之证：全属性+18%
+        pctBonus.atk += 18; pctBonus.def += 18; pctBonus.hp += 18;
+      } else if (af.type === 'pct') {
+        if (af.stat === 'all') { pctBonus.atk += af.value; pctBonus.def += af.value; pctBonus.hp += af.value; }
+        else pctBonus[af.stat] = (pctBonus[af.stat] || 0) + af.value;
+      } else {
+        // flat
+        if (af.stat === 'all') { flatBonus.atk += af.value; flatBonus.def += af.value; flatBonus.hp += af.value; }
+        else flatBonus[af.stat] = (flatBonus[af.stat] || 0) + af.value;
+      }
+    }
+
+    // 先加固定值，再乘百分比
+    atk = Math.max(1, Math.floor((atk + flatBonus.atk) * (1 + pctBonus.atk / 100)));
+    def = Math.max(1, Math.floor((def + flatBonus.def) * (1 + pctBonus.def / 100)));
+    hp  = Math.max(1, Math.floor((hp  + flatBonus.hp)  * (1 + pctBonus.hp  / 100)));
+  }
+
+  return { atk, def, hp };
 }
 
 // ========== ★ 经验系统 ==========
@@ -128,6 +172,13 @@ function createPet(speciesId, quality, gender, options = {}) {
     isShiny = true;
   }
 
+  // ★ 闪光伙伴野外抓捕加成：当前资质+10%（仅初代抓捕时生效）
+  if (isShiny && gen === 0 && !options.potential) {
+    potential.atk = Math.min(Math.floor(potential.atk * 1.10), potentialCap.atk);
+    potential.def = Math.min(Math.floor(potential.def * 1.10), potentialCap.def);
+    potential.hp  = Math.min(Math.floor(potential.hp  * 1.10), potentialCap.hp);
+  }
+
   const lifeCap = options.lifeCap || randInt(CONFIG.LIFE_CAP_MIN, CONFIG.LIFE_CAP_MAX);
 
   const pet = {
@@ -173,15 +224,39 @@ function createPet(speciesId, quality, gender, options = {}) {
 function generateWildAffixes() {
   const affixes = [];
   const count = randInt(1, 3);
-  const pool = [...AFFIX_POOL.normal_pos, ...AFFIX_POOL.normal_neg];
+  // 合并所有可能的词条池（固定值+百分比+负面+混合）
+  const pool = [
+    ...AFFIX_POOL.normal_pos,
+    ...AFFIX_POOL.normal_pct,
+    ...AFFIX_POOL.normal_neg,
+    ...AFFIX_POOL.normal_mix,
+  ];
+  const usedIds = new Set();
   for (let i = 0; i < count; i++) {
-    const base = pick(pool);
-    affixes.push({
-      ...base,
-      value: randInt(base.min, base.max),
-      isBreedAffix: false,
-      isGen10: false,
-    });
+    const candidates = pool.filter(a => !usedIds.has(a.id));
+    if (candidates.length === 0) break;
+    const base = pick(candidates);
+    usedIds.add(base.id);
+
+    if (base.buffStat) {
+      // 混合词条：有增有减
+      affixes.push({
+        ...base,
+        buffValue: randInt(base.buffMin, base.buffMax),
+        debuffValue: randInt(base.debuffMin, base.debuffMax),
+        value: 0, // 占位
+        isMixed: true,
+        isBreedAffix: false,
+        isGen10: false,
+      });
+    } else {
+      affixes.push({
+        ...base,
+        value: randInt(base.min, base.max),
+        isBreedAffix: false,
+        isGen10: false,
+      });
+    }
   }
   return affixes;
 }
@@ -655,11 +730,11 @@ function maxLevel(pet) {
 
 // ========== 获取伙伴总资质百分比 ==========
 function getPotentialPercent(pet) {
-  const tmpl = TYPE_TEMPLATE[pet.species.type];
-  const q = QUALITY[pet.quality];
-  const maxTotal = (tmpl.atk + tmpl.def + tmpl.hp) * q.coeff;
+  // 资质百分比 = 当前三项资质总和 / (品质上限 × 3) × 100%
+  // 品质上限 = 各属性cap取最大值（同品质下所有属性cap相近）
+  const capTotal = pet.potentialCap.atk + pet.potentialCap.def + pet.potentialCap.hp;
   const curTotal = pet.potential.atk + pet.potential.def + pet.potential.hp;
-  return Math.floor((curTotal / maxTotal) * 100);
+  return Math.floor((curTotal / capTotal) * 100);
 }
 
 // ========== 获取技能信息 ==========

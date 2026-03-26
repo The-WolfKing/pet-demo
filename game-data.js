@@ -282,31 +282,52 @@ const AFFIX_COLORS = {
 };
 
 const AFFIX_POOL = {
+  // === 固定值正面词条（数值削弱） ===
   normal_pos: [
-    { id: 1001, name: '攻击强化I',  stat: 'atk', min: 50,  max: 150, rarity: 'white' },
-    { id: 1002, name: '攻击强化II', stat: 'atk', min: 150, max: 300, rarity: 'green' },
-    { id: 1003, name: '攻击强化III',stat: 'atk', min: 300, max: 500, rarity: 'blue' },
-    { id: 1004, name: '防御强化I',  stat: 'def', min: 50,  max: 150, rarity: 'white' },
-    { id: 1005, name: '防御强化II', stat: 'def', min: 150, max: 300, rarity: 'green' },
-    { id: 1006, name: '防御强化III',stat: 'def', min: 300, max: 500, rarity: 'blue' },
-    { id: 1007, name: '生命强化I',  stat: 'hp',  min: 100, max: 300, rarity: 'white' },
-    { id: 1008, name: '生命强化II', stat: 'hp',  min: 300, max: 600, rarity: 'green' },
-    { id: 1009, name: '生命强化III',stat: 'hp',  min: 600, max: 1000, rarity: 'blue' },
-    { id: 1010, name: '全能I',      stat: 'all', min: 30,  max: 80,  rarity: 'purple' },
-    { id: 1011, name: '全能II',     stat: 'all', min: 80,  max: 200, rarity: 'orange' },
+    { id: 1001, name: '攻击强化I',   stat: 'atk', type: 'flat', min: 10,  max: 30,  rarity: 'white' },
+    { id: 1002, name: '攻击强化II',  stat: 'atk', type: 'flat', min: 30,  max: 60,  rarity: 'green' },
+    { id: 1003, name: '攻击强化III', stat: 'atk', type: 'flat', min: 60,  max: 100, rarity: 'blue' },
+    { id: 1004, name: '防御强化I',   stat: 'def', type: 'flat', min: 10,  max: 30,  rarity: 'white' },
+    { id: 1005, name: '防御强化II',  stat: 'def', type: 'flat', min: 30,  max: 60,  rarity: 'green' },
+    { id: 1006, name: '防御强化III', stat: 'def', type: 'flat', min: 60,  max: 100, rarity: 'blue' },
+    { id: 1007, name: '生命强化I',   stat: 'hp',  type: 'flat', min: 20,  max: 60,  rarity: 'white' },
+    { id: 1008, name: '生命强化II',  stat: 'hp',  type: 'flat', min: 60,  max: 120, rarity: 'green' },
+    { id: 1009, name: '生命强化III', stat: 'hp',  type: 'flat', min: 120, max: 200, rarity: 'blue' },
   ],
+  // === 百分比正面词条 ===
+  normal_pct: [
+    { id: 1101, name: '攻击精通I',   stat: 'atk', type: 'pct', min: 3,  max: 6,  rarity: 'green' },
+    { id: 1102, name: '攻击精通II',  stat: 'atk', type: 'pct', min: 6,  max: 10, rarity: 'blue' },
+    { id: 1103, name: '防御精通I',   stat: 'def', type: 'pct', min: 3,  max: 6,  rarity: 'green' },
+    { id: 1104, name: '防御精通II',  stat: 'def', type: 'pct', min: 6,  max: 10, rarity: 'blue' },
+    { id: 1105, name: '生命精通I',   stat: 'hp',  type: 'pct', min: 3,  max: 6,  rarity: 'green' },
+    { id: 1106, name: '生命精通II',  stat: 'hp',  type: 'pct', min: 6,  max: 10, rarity: 'blue' },
+    { id: 1107, name: '全能',        stat: 'all', type: 'pct', min: 2,  max: 5,  rarity: 'purple' },
+  ],
+  // === 负面词条 ===
   normal_neg: [
-    { id: 2001, name: '攻击衰减', stat: 'atk', min: -150, max: -50, rarity: 'white' },
-    { id: 2002, name: '防御衰减', stat: 'def', min: -150, max: -50, rarity: 'white' },
-    { id: 2003, name: '迟钝',     stat: 'all', min: -60,  max: -20, rarity: 'white' },
+    { id: 2001, name: '攻击衰减',   stat: 'atk', type: 'flat', min: -40,  max: -15, rarity: 'white' },
+    { id: 2002, name: '防御衰减',   stat: 'def', type: 'flat', min: -40,  max: -15, rarity: 'white' },
+    { id: 2003, name: '生命衰减',   stat: 'hp',  type: 'flat', min: -80,  max: -30, rarity: 'white' },
+    { id: 2004, name: '攻击弱化',   stat: 'atk', type: 'pct', min: -6,  max: -2,  rarity: 'white' },
+    { id: 2005, name: '防御弱化',   stat: 'def', type: 'pct', min: -6,  max: -2,  rarity: 'white' },
   ],
+  // === 混合词条（有增有减） ===
+  normal_mix: [
+    { id: 2101, name: '狂暴',   buffStat: 'atk', buffType: 'pct', buffMin: 5, buffMax: 10, debuffStat: 'def', debuffType: 'pct', debuffMin: -6, debuffMax: -3, rarity: 'blue' },
+    { id: 2102, name: '坚韧',   buffStat: 'def', buffType: 'pct', buffMin: 5, buffMax: 10, debuffStat: 'atk', debuffType: 'pct', debuffMin: -6, debuffMax: -3, rarity: 'blue' },
+    { id: 2103, name: '重装',   buffStat: 'hp',  buffType: 'pct', buffMin: 6, buffMax: 12, debuffStat: 'atk', debuffType: 'flat', debuffMin: -30, debuffMax: -10, rarity: 'green' },
+    { id: 2104, name: '轻灵',   buffStat: 'atk', buffType: 'flat', buffMin: 30, buffMax: 60, debuffStat: 'hp', debuffType: 'pct', debuffMin: -5, debuffMax: -2, rarity: 'green' },
+  ],
+  // === 繁育专属词条 ===
   breed: [
-    { id: 3001, name: '繁育之力I',   stat: 'atk', min: 100, max: 250, rarity: 'purple' },
-    { id: 3002, name: '繁育之力II',  stat: 'def', min: 100, max: 250, rarity: 'purple' },
-    { id: 3003, name: '繁育之力III', stat: 'hp',  min: 200, max: 600, rarity: 'purple' },
-    { id: 3004, name: '繁育精华',    stat: 'all', min: 60,  max: 150, rarity: 'orange' },
+    { id: 3001, name: '繁育之力',    stat: 'atk', type: 'flat', min: 20, max: 50,  rarity: 'purple' },
+    { id: 3002, name: '繁育之盾',    stat: 'def', type: 'flat', min: 20, max: 50,  rarity: 'purple' },
+    { id: 3003, name: '繁育之心',    stat: 'hp',  type: 'flat', min: 40, max: 100, rarity: 'purple' },
+    { id: 3004, name: '繁育精华',    stat: 'all', type: 'pct', min: 2,  max: 5,   rarity: 'orange' },
   ],
-  gen10: { id: 9001, name: '十代之证', desc: '全属性+18%', multiplier: 0.18, rarity: 'red' },
+  // === 十代之证（保持特殊） ===
+  gen10: { id: 9001, name: '十代之证', desc: '全属性+18%', type: 'pct', stat: 'all', value: 18, rarity: 'red' },
 };
 
 // ========== 异色名称 ==========
@@ -375,7 +396,7 @@ const CONFIG = {
   INITIAL_POKEBALL: 5,
   POKEBALL_MAX: 50,
   POKEBALL_REGEN_MS: 1000,  // 1秒 = 1000ms
-  CAPTURE_POTENTIAL_MIN: 0.40,
+  CAPTURE_POTENTIAL_MIN: 0.30,
   CAPTURE_POTENTIAL_MAX: 0.60,
   SHINY_BASE_CHANCE: 0.10,
   SHINY_PARENT_BONUS: 0.10,

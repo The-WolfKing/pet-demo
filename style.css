@@ -1529,6 +1529,43 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
+/* ========== 闪光特效 ========== */
+.shiny-banner {
+  background: linear-gradient(135deg, #2d1b69 0%, #1a1a2e 30%, #0f3460 70%, #16213e 100%);
+  border: 2px solid #f1c40f;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+  animation: shinyPulse 1.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px rgba(241, 196, 15, 0.3), inset 0 0 30px rgba(241, 196, 15, 0.05);
+}
+.shiny-stars {
+  font-size: 18px;
+  letter-spacing: 8px;
+  animation: shinySpin 2s linear infinite;
+}
+.shiny-text {
+  font-size: 22px;
+  font-weight: bold;
+  color: #f1c40f;
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.6);
+  margin: 8px 0;
+}
+.shiny-desc {
+  font-size: 13px;
+  color: #e67e22;
+  font-weight: 600;
+}
+@keyframes shinyPulse {
+  from { box-shadow: 0 0 20px rgba(241,196,15,0.3); }
+  to   { box-shadow: 0 0 40px rgba(241,196,15,0.6), 0 0 80px rgba(241,196,15,0.15); }
+}
+@keyframes shinySpin {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* ========== 批量放生 ========== */
 .batch-release-toolbar {
   display: flex;
