@@ -519,13 +519,20 @@ function renderParentSlot(role, pet) {
   const container = document.getElementById(`${role}-content`);
   const q = QUALITY[pet.quality];
   const gi = pet.gender === 'male' ? '♂' : '♀';
+  const pct = getPotentialPercent(pet);
+  const lifePct = Math.min(100, (pet.life / pet.lifeCap * 100));
   container.innerHTML = `
-    <div style="font-size:32px;text-align:center">${pet.species.emoji}</div>
-    <div style="font-size:14px;font-weight:bold;text-align:center;color:${q.color}">${pet.name} ${gi}</div>
-    <div style="font-size:11px;color:#8899aa;text-align:center;margin-bottom:6px">
-      G${pet.generation} | ${q.name} | Lv.${pet.level} | 寿命:${pet.lifeCap}
+    <div style="font-size:40px;text-align:center">${pet.species.emoji}</div>
+    <div style="font-size:14px;font-weight:bold;text-align:center;color:${q.color}">${pet.name} <span style="color:${pet.gender==='male'?'#3498db':'#e74c3c'}">${gi}</span></div>
+    <div style="text-align:center;margin:4px 0">
+      <span style="background:${q.color};color:#fff;padding:1px 8px;border-radius:10px;font-size:11px">${q.name}</span>
+      <span style="font-size:11px;color:#8899aa;margin-left:4px">${TYPE_TEMPLATE[pet.species.type].icon} ${TYPE_TEMPLATE[pet.species.type].name}</span>
     </div>
-    ${renderStatBars(pet)}
+    <div style="font-size:10px;color:#8899aa;text-align:center;margin-bottom:6px">
+      Lv.${pet.level} | G${pet.generation} | 进化${pet.evoStage}/${pet.species.maxEvo}段 | 资质${pct}%
+    </div>
+    ${renderUnifiedStats(pet)}
+    <div class="exp-bar-wrap" style="margin-top:4px"><span class="exp-label" style="color:#e74c3c;font-size:10px">❤寿命</span><span class="stat-val" style="font-size:10px">${pet.life}</span><div class="stat-track"><div class="stat-fill" style="width:${lifePct}%;background:linear-gradient(90deg,#e74c3c,#c0392b)"></div></div><span class="stat-val" style="font-size:10px">上限${pet.lifeCap}</span></div>
     ${renderSkillIcons(pet.skills, pet.evoStage > 0)}
   `;
   updateBreedPreview();
@@ -652,18 +659,16 @@ function showEvolvePanel(pet) {
   const q = QUALITY[pet.quality];
   const total = pet.potential.atk + pet.potential.def + pet.potential.hp;
 
-  detail.innerHTML = `
-    <div style="text-align:center;font-size:36px">${pet.species.emoji}</div>
-    <div style="text-align:center;font-size:16px;font-weight:bold;color:${q.color}">${pet.name} (进化${pet.evoStage}/${pet.species.maxEvo}段)</div>
-    <div style="margin:12px 0;font-size:13px;color:#8899aa">
-      <div>等级: Lv.${pet.level} ${pet.level>=CONFIG.MAX_LEVEL?'✅':'❌ 需要满级'+CONFIG.MAX_LEVEL}</div>
-      <div>总资质: ${total} ${total>=CONFIG.EVO_TOTAL_THRESHOLD?'✅':'❌ 需要≥'+CONFIG.EVO_TOTAL_THRESHOLD}</div>
-      <div>进化石: ${GameState.evoStone} ${GameState.evoStone>=1?'✅':'❌ 不足'}</div>
-      <div>进化段数: ${pet.evoStage}/${pet.species.maxEvo} ${pet.evoStage<pet.species.maxEvo?'✅':'❌ 已满'}</div>
-      ${pet.evoStage === 0 && pet.species.evoSkill ? `<div style="color:#e67e22">进化后将获得新技能：${pet.species.evoSkill}</div>` : ''}
-    </div>
-    ${errors.length > 0 ? `<div style="color:#e74c3c;font-size:12px;margin:8px 0">${errors.join('<br>')}</div>` : ''}
-  `;
+  // 进化条件检查区块
+  let condHtml = `<div class="pdc-section-title">📋 进化条件</div><div style="font-size:12px;color:#8899aa;line-height:2">`;
+  condHtml += `<div>等级: Lv.${pet.level} ${pet.level>=CONFIG.MAX_LEVEL?'<span style="color:#27ae60">✅</span>':'<span style="color:#e74c3c">❌ 需满级'+CONFIG.MAX_LEVEL+'</span>'}</div>`;
+  condHtml += `<div>总资质: ${total} ${total>=CONFIG.EVO_TOTAL_THRESHOLD?'<span style="color:#27ae60">✅</span>':'<span style="color:#e74c3c">❌ 需≥'+CONFIG.EVO_TOTAL_THRESHOLD+'</span>'}</div>`;
+  condHtml += `<div>进化石: ${GameState.evoStone} ${GameState.evoStone>=1?'<span style="color:#27ae60">✅</span>':'<span style="color:#e74c3c">❌ 不足</span>'}</div>`;
+  condHtml += `<div>进化段数: ${pet.evoStage}/${pet.species.maxEvo} ${pet.evoStage<pet.species.maxEvo?'<span style="color:#27ae60">✅</span>':'<span style="color:#e74c3c">❌ 已满</span>'}</div>`;
+  if (pet.species.evoSkill && pet.evoStage === 0) condHtml += `<div style="color:#e67e22">🆕 进化后获得新技能：${pet.species.evoSkill}</div>`;
+  condHtml += `</div>`;
+
+  detail.innerHTML = renderPetDetailCard(pet, condHtml);
   document.getElementById('btn-evolve').disabled = !canDo;
 }
 
