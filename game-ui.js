@@ -545,11 +545,25 @@ function updateBreedPreview() {
     return;
   }
   preview.classList.remove('hidden');
+
+  // 使用新的繁育区间公式
+  const result = calcBreedPreviewRange(selectedFather, selectedMother);
+  const r = result.ranges;
+  const statConfig = {
+    hp:  { label: '❤ 生命资质', color: '#27ae60' },
+    atk: { label: '⚔ 攻击资质', color: '#e74c3c' },
+    def: { label: '🛡 防御资质', color: '#3498db' },
+  };
   for (const stat of ['atk', 'def', 'hp']) {
-    const minV = Math.min(selectedFather.potential[stat], selectedMother.potential[stat]);
-    const maxV = Math.max(selectedFather.potential[stat], selectedMother.potential[stat]);
-    document.getElementById(`preview-${stat}`).innerHTML = `<span style="color:${stat==='atk'?'#e74c3c':stat==='def'?'#3498db':'#27ae60'}">${stat.toUpperCase()}: ${minV} ~ ${maxV}</span>`;
+    const cfg = statConfig[stat];
+    document.getElementById(`preview-${stat}`).innerHTML = `
+      <span style="color:${cfg.color};font-weight:bold">${cfg.label}</span>
+      <span style="color:#f1c40f;font-size:14px;font-weight:bold;margin-left:8px">${r[stat].min} - ${r[stat].max}</span>
+    `;
   }
+  // 显示子代代数
+  const genLabel = document.getElementById('preview-gen');
+  if (genLabel) genLabel.textContent = `第${result.gen}代`;
 }
 
 function checkBreedReady() {
@@ -614,8 +628,15 @@ function showBreedResultOverlay(result) {
   if (breedAffixes.length > 0) {
     extraInfo += `🔮 <strong style="color:#27ae60">获得繁育词条：${breedAffixes.map(a=>a.name+'+'+a.value).join(', ')}</strong><br>`;
   }
-  if (result.genDiff > 0) {
-    extraInfo += `<span style="color:#e67e22">⚠ 代差惩罚: ×${result.penalty}</span>`;
+  // 显示繁育区间
+  if (result.breedRanges) {
+    extraInfo += `<div style="font-size:11px;color:#8899aa;margin-top:4px">`;
+    for (const stat of ['hp', 'atk', 'def']) {
+      const r = result.breedRanges[stat];
+      const label = stat === 'hp' ? '❤HP' : stat === 'atk' ? '⚔ATK' : '🛡DEF';
+      extraInfo += `${label}: ${r.min}~${r.max} → <span style="color:#f1c40f">${result.child.potential[stat]}</span>　`;
+    }
+    extraInfo += `</div>`;
   }
 
   content.innerHTML = `

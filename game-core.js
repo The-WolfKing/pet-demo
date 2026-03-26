@@ -245,6 +245,25 @@ function canBreed(father, mother) {
   return errors;
 }
 
+// ★ 繁育预览：计算子代资质区间（供UI显示用）
+function calcBreedPreviewRange(father, mother) {
+  const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
+  const growthFactor = 0.25 + childGen * 0.08;
+  const ranges = {};
+  for (const stat of ['atk', 'def', 'hp']) {
+    const fVal = father.potential[stat];
+    const mVal = mother.potential[stat];
+    const capLimit = Math.min(father.potentialCap[stat], mother.potentialCap[stat]);
+    const rangeMin = Math.floor(Math.min(fVal, mVal) * 0.95);
+    const maxParent = Math.max(fVal, mVal);
+    const room = Math.max(0, capLimit - maxParent);
+    const growth = Math.floor(room * growthFactor);
+    const rangeMax = Math.min(maxParent + growth, capLimit);
+    ranges[stat] = { min: rangeMin, max: rangeMax };
+  }
+  return { ranges, gen: childGen };
+}
+
 function breed(father, mother) {
   const errors = canBreed(father, mother);
   if (errors.length > 0) return { success: false, errors };
@@ -257,40 +276,45 @@ function breed(father, mother) {
   const speciesId = mother.speciesId;
   const species = mother.species;
 
-  // ★ 品质随母系（不取max了！）
+  // ★ 品质随母系
   const childQuality = mother.quality;
 
   // ★ 代数 = max(父,母) + 1
   const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
 
-  // ★ 资质上限：不受品质限制！使用传说系数(1.46)作为理论极限
-  // 这样绿色宠物通过多代繁育也能趋近红色资质
-  const tmpl = TYPE_TEMPLATE[species.type];
-  const legendCoeff = QUALITY[5].coeff; // 1.46 传说系数
-  const genCoeff = CONFIG.GEN_CAP_COEFFS[childGen] || 1.0;
+  // ★ 资质上限：继承父母中较低的上限（子代cap不超过父母）
   const cap = {
-    atk: Math.floor(tmpl.atk * legendCoeff * genCoeff),
-    def: Math.floor(tmpl.def * legendCoeff * genCoeff),
-    hp:  Math.floor(tmpl.hp  * legendCoeff * genCoeff),
+    atk: Math.min(father.potentialCap.atk, mother.potentialCap.atk),
+    def: Math.min(father.potentialCap.def, mother.potentialCap.def),
+    hp:  Math.min(father.potentialCap.hp,  mother.potentialCap.hp),
   };
 
-  // ★ 代数差惩罚
-  const genDiff = Math.abs(father.generation - mother.generation);
-  const penalty = CONFIG.GEN_DIFF_PENALTY[Math.min(genDiff, 10)] || 0.4;
-
-  // ★ 核心遗传算法：子代资质 = 父母资质区间随机 × 0.95 × 代数差惩罚 + 代数成长加成
+  // ★ 核心遗传算法 v2
+  // 最小值 = min(父,母) × 0.95
+  // 最大值 = min( max(父,母) + (cap - max(父,母)) × growthFactor, cap )
+  // growthFactor = 0.25 + childGen × 0.08  （代数越高，成长越快）
+  // 子代资质 = 在 [最小值, 最大值] 之间随机
   const potential = {};
+  const breedRanges = {};
+  const growthFactor = 0.25 + childGen * 0.08;
+
   for (const stat of ['atk', 'def', 'hp']) {
     const fVal = father.potential[stat];
     const mVal = mother.potential[stat];
-    const minV = Math.min(fVal, mVal);
-    const maxV = Math.max(fVal, mVal);
-    let val = randInt(minV, maxV);
-    val = Math.floor(val * CONFIG.BREED_DECAY * penalty);
-    // 代数成长加成：每代额外获得理论上限的8%，保证代数增长有意义
-    val += Math.floor(tmpl[stat] * legendCoeff * genCoeff * 0.08 * childGen);
-    val = clamp(val, 1, cap[stat]);
+
+    // 最小值 = 双方较低值 × 0.95
+    const rangeMin = Math.floor(Math.min(fVal, mVal) * 0.95);
+
+    // 最大值 = max(父,母) + 成长空间 × growthFactor
+    const maxParent = Math.max(fVal, mVal);
+    const room = Math.max(0, cap[stat] - maxParent);
+    const growth = Math.floor(room * growthFactor);
+    const rangeMax = Math.min(maxParent + growth, cap[stat]);
+
+    // 随机取值
+    const val = clamp(randInt(rangeMin, rangeMax), 1, cap[stat]);
     potential[stat] = val;
+    breedRanges[stat] = { min: rangeMin, max: rangeMax };
   }
 
   // ★ 技能：从母系种类技能池随机2~4个
@@ -341,12 +365,8 @@ function breed(father, mother) {
   GameState.pets.push(child);
 
   return {
-    success: true, child, father, mother, genDiff, penalty,
-    expectedRange: {
-      atk: { min: Math.min(father.potential.atk, mother.potential.atk), max: Math.max(father.potential.atk, mother.potential.atk) },
-      def: { min: Math.min(father.potential.def, mother.potential.def), max: Math.max(father.potential.def, mother.potential.def) },
-      hp:  { min: Math.min(father.potential.hp,  mother.potential.hp),  max: Math.max(father.potential.hp,  mother.potential.hp) },
-    },
+    success: true, child, father, mother,
+    breedRanges,  // 繁育时的实际资质区间
   };
 }
 
