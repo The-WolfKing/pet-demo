@@ -599,21 +599,23 @@ function showSelectModal(gender) {
   title.textContent = gender === 'male' ? '选择父系 ♂' : '选择母系 ♀';
   list.innerHTML = '';
 
-  const filtered = GameState.pets.filter(p => {
+  const allGender = GameState.pets.filter(p => {
     if (p.gender !== gender) return false;
-    if (p.lifeCap <= 0) return false;
     if (p.generation >= CONFIG.MAX_GENERATION) return false;
     if (p.isVariant) return false;
-    // 不选已选的另一方
     if (selectingFor === 'father' && selectedMother && p.id === selectedMother.id) return false;
     if (selectingFor === 'mother' && selectedFather && p.id === selectedFather.id) return false;
     return true;
   });
 
-  if (filtered.length === 0) {
+  if (allGender.length === 0) {
     list.innerHTML = `<div class="empty-tip">没有可用的${gender==='male'?'公':'母'}性伙伴</div>`;
   } else {
-    filtered.forEach(pet => {
+    // 可用的排前面，寿命不足的排后面
+    const available = allGender.filter(p => p.lifeCap > 0);
+    const noLife = allGender.filter(p => p.lifeCap <= 0);
+
+    available.forEach(pet => {
       list.appendChild(renderPetCard(pet, (p) => {
         if (selectingFor === 'father') {
           selectedFather = p;
@@ -625,6 +627,20 @@ function showSelectModal(gender) {
         closeModal();
         checkBreedReady();
       }));
+    });
+
+    noLife.forEach(pet => {
+      const card = renderPetCard(pet, null);
+      card.style.opacity = '0.4';
+      card.style.filter = 'grayscale(80%)';
+      card.style.pointerEvents = 'none';
+      card.style.position = 'relative';
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.7);color:#e74c3c;font-size:13px;font-weight:bold;padding:4px 12px;border-radius:8px;white-space:nowrap;z-index:2;';
+      overlay.textContent = '💀 寿命不足';
+      card.style.position = 'relative';
+      card.appendChild(overlay);
+      list.appendChild(card);
     });
   }
 
@@ -776,17 +792,59 @@ function refreshEvolvePage() {
   selectedEvolvePet = null;
   document.getElementById('evolve-panel').classList.add('hidden');
 
-  const evolvable = GameState.pets.filter(p => p.species.maxEvo > 0);
-  if (evolvable.length === 0) {
+  const allPets = GameState.pets.filter(p => p.species.maxEvo > 0);
+  if (allPets.length === 0) {
     list.innerHTML = '<div class="empty-tip">没有可进化的伙伴</div>';
     return;
   }
-  evolvable.forEach(pet => {
-    list.appendChild(renderPetCard(pet, (p) => {
-      selectedEvolvePet = p;
-      showEvolvePanel(p);
-    }, true));
+
+  // 分三组：可进化（全满足）、部分满足、不可进化
+  const readyPets = [];    // 所有条件都满足
+  const partialPets = [];  // 至少一个条件满足但不是全部
+  const blockedPets = [];  // 一个条件都不满足，或已满进化
+
+  allPets.forEach(pet => {
+    if (pet.evoStage >= pet.species.maxEvo) {
+      blockedPets.push(pet); // 已满进化
+      return;
+    }
+    // 检查各项条件是否满足
+    const levelOk = pet.level >= CONFIG.MAX_LEVEL;
+    const total = pet.potential.atk + pet.potential.def + pet.potential.hp;
+    const aptOk = total >= CONFIG.EVO_TOTAL_THRESHOLD;
+    const stoneOk = GameState.evoStone >= 1;
+    const metCount = (levelOk ? 1 : 0) + (aptOk ? 1 : 0) + (stoneOk ? 1 : 0);
+
+    if (metCount === 3) readyPets.push(pet);
+    else if (metCount >= 1) partialPets.push(pet);
+    else blockedPets.push(pet);
   });
+
+  function renderSection(title, color, icon, pets, dimmed) {
+    if (pets.length === 0) return '';
+    let html = `<div style="grid-column:1/-1;margin:12px 0 6px;padding:8px 12px;background:${color};border-radius:8px;font-size:13px;font-weight:bold;">
+      ${icon} ${title} <span style="color:#8899aa;font-weight:normal;font-size:11px">(${pets.length})</span>
+    </div>`;
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    list.appendChild(container.firstElementChild);
+
+    pets.forEach(pet => {
+      const card = renderPetCard(pet, (p) => {
+        selectedEvolvePet = p;
+        showEvolvePanel(p);
+      }, true);
+      if (dimmed) {
+        card.style.opacity = '0.45';
+        card.style.filter = 'grayscale(60%)';
+      }
+      list.appendChild(card);
+    });
+  }
+
+  renderSection('✅ 可进化', 'rgba(39,174,96,0.15)', '⚡', readyPets, false);
+  renderSection('⏳ 部分条件满足', 'rgba(241,196,15,0.15)', '🔧', partialPets, false);
+  renderSection('🔒 不可进化', 'rgba(149,165,166,0.15)', '🚫', blockedPets, true);
 }
 
 function showEvolvePanel(pet) {
