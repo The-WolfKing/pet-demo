@@ -173,13 +173,6 @@
       <div class="section-header"><h2>进化工坊</h2></div>
       <div id="evolve-area">
         <div id="evolve-pet-list" class="pet-grid"></div>
-        <div id="evolve-panel" class="hidden">
-          <div id="evolve-detail"></div>
-          <button id="btn-evolve" class="btn btn-warning btn-large">
-            ⚡ 执行进化
-          </button>
-          <div id="evolve-result" class="result-panel hidden"></div>
-        </div>
       </div>
     </section>
 
@@ -331,6 +324,22 @@
       <button class="btn btn-small" style="background:#c0392b;margin-left:auto" onclick="confirmBatchRelease()">🗑️ 放生选中</button>
     </div>
     <div id="batch-release-list" class="batch-release-grid"></div>
+  </div>
+</div>
+
+<!-- 进化详情弹窗 -->
+<div id="evolve-overlay" class="overlay hidden">
+  <div class="overlay-box" style="max-width:440px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0;font-size:16px">⚡ 进化详情</h3>
+      <button class="modal-close" onclick="closeEvolveOverlay()">✕</button>
+    </div>
+    <div id="evolve-detail"></div>
+    <div id="evolve-result" class="result-panel hidden" style="margin-top:12px"></div>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:16px">
+      <button class="btn btn-small" style="background:#555;padding:8px 24px" onclick="closeEvolveOverlay()">关闭</button>
+      <button id="btn-evolve" class="btn btn-small" style="background:#e67e22;padding:8px 24px">⚡ 执行进化</button>
+    </div>
   </div>
 </div>
 

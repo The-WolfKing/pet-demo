@@ -808,14 +808,13 @@ function refreshEvolvePage() {
       blockedPets.push(pet); // 已满进化
       return;
     }
-    // 检查各项条件是否满足
+    // 检查各项条件是否满足（只判等级和总资质）
     const levelOk = pet.level >= CONFIG.MAX_LEVEL;
     const total = pet.potential.atk + pet.potential.def + pet.potential.hp;
     const aptOk = total >= CONFIG.EVO_TOTAL_THRESHOLD;
-    const stoneOk = GameState.evoStone >= 1;
-    const metCount = (levelOk ? 1 : 0) + (aptOk ? 1 : 0) + (stoneOk ? 1 : 0);
+    const metCount = (levelOk ? 1 : 0) + (aptOk ? 1 : 0);
 
-    if (metCount === 3) readyPets.push(pet);
+    if (metCount === 2) readyPets.push(pet);
     else if (metCount >= 1) partialPets.push(pet);
     else blockedPets.push(pet);
   });
@@ -848,9 +847,9 @@ function refreshEvolvePage() {
 }
 
 function showEvolvePanel(pet) {
-  const panel = document.getElementById('evolve-panel');
+  const overlay = document.getElementById('evolve-overlay');
   const detail = document.getElementById('evolve-detail');
-  panel.classList.remove('hidden');
+  overlay.classList.remove('hidden');
   document.getElementById('evolve-result').classList.add('hidden');
 
   const errors = canEvolve(pet);
@@ -868,7 +867,13 @@ function showEvolvePanel(pet) {
   condHtml += `</div>`;
 
   detail.innerHTML = renderPetDetailCard(pet, condHtml);
-  document.getElementById('btn-evolve').disabled = !canDo;
+  const btnEvolve = document.getElementById('btn-evolve');
+  btnEvolve.style.display = '';
+  btnEvolve.disabled = !canDo;
+}
+
+function closeEvolveOverlay() {
+  document.getElementById('evolve-overlay').classList.add('hidden');
 }
 
 document.getElementById('btn-evolve').addEventListener('click', () => {
@@ -880,12 +885,11 @@ document.getElementById('btn-evolve').addEventListener('click', () => {
   }
   showEvolveResult(result);
   updateFooter();
-  saveGame(); // 自动存档
+  saveGame();
 });
 
 function showEvolveResult(result) {
-  const panel = document.getElementById('evolve-result');
-  panel.classList.remove('hidden');
+  const detail = document.getElementById('evolve-detail');
   const b = result.before;
   const a = result.after;
   const pet = result.pet;
@@ -905,13 +909,17 @@ function showEvolveResult(result) {
     ${newSkill ? `<div style="color:#e67e22;font-weight:bold;font-size:13px">🆕 获得新技能：${newSkill}</div>` : ''}
   `;
 
-  panel.innerHTML = `
-    <div class="result-title">⚡ 进化成功！ → 第${a.evoStage}段</div>
+  // 直接替换弹窗内容为进化结果
+  detail.innerHTML = `
+    <div class="result-title" style="color:#e67e22;font-size:18px;text-align:center;margin-bottom:12px">⚡ 进化成功！ → 第${a.evoStage}段</div>
     ${renderPetDetailCard(pet, extraInfo)}
   `;
 
-  // 刷新面板
-  showEvolvePanel(pet);
+  // 隐藏执行按钮
+  document.getElementById('btn-evolve').style.display = 'none';
+
+  // 刷新进化列表
+  refreshEvolvePage();
 }
 
 // ========== 雷达图 ==========
