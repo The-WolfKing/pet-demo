@@ -611,9 +611,10 @@ function showSelectModal(gender) {
   if (allGender.length === 0) {
     list.innerHTML = `<div class="empty-tip">没有可用的${gender==='male'?'公':'母'}性伙伴</div>`;
   } else {
-    // 可用的排前面，寿命不足的排后面
-    const available = allGender.filter(p => p.lifeCap > 0);
-    const noLife = allGender.filter(p => p.lifeCap <= 0);
+    // 分三组：可用 / 十代之证 / 寿命不足
+    const available = allGender.filter(p => p.lifeCap > 0 && !p.hasGen10Affix);
+    const gen10Blocked = allGender.filter(p => p.hasGen10Affix);
+    const noLife = allGender.filter(p => p.lifeCap <= 0 && !p.hasGen10Affix);
 
     available.forEach(pet => {
       list.appendChild(renderPetCard(pet, (p) => {
@@ -629,12 +630,29 @@ function showSelectModal(gender) {
       }));
     });
 
+    // 十代之证伙伴 - 血脉过于强大
+    gen10Blocked.forEach(pet => {
+      const card = renderPetCard(pet, null);
+      card.style.pointerEvents = 'none';
+      card.style.position = 'relative';
+      card.style.overflow = 'hidden';
+      const mask = document.createElement('div');
+      mask.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(20,15,5,0.88);z-index:2;display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:12px;border:2px solid #f39c12;';
+      mask.innerHTML = `
+        <div style="font-size:48px;margin-bottom:8px">👑</div>
+        <div style="color:#f1c40f;font-size:16px;font-weight:bold;letter-spacing:2px;text-shadow:0 0 12px rgba(241,196,15,0.6)">血脉过于强大</div>
+        <div style="color:#d4a017;font-size:12px;margin-top:6px">无法继承</div>
+      `;
+      card.appendChild(mask);
+      list.appendChild(card);
+    });
+
+    // 寿命不足
     noLife.forEach(pet => {
       const card = renderPetCard(pet, null);
       card.style.pointerEvents = 'none';
       card.style.position = 'relative';
       card.style.overflow = 'hidden';
-      // 全卡片不透明遮罩
       const mask = document.createElement('div');
       mask.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(20,20,25,0.88);z-index:2;display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:12px;border:2px solid #555;';
       mask.innerHTML = `
