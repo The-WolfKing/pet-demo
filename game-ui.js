@@ -1120,6 +1120,9 @@ function checkTeamBattleReady() {
 
 document.getElementById('btn-team-battle').addEventListener('click', () => {
   if (teamSelection.length < 3) return;
+  if (GameState.dungeonStamina <= 0) { alert('副本次数不足！请等待恢复或看广告获取。'); return; }
+  GameState.dungeonStamina--;
+  GameState.dungeonStaminaLastRegen = Date.now();
   const result = runTeamBattle(teamSelection, selectedTeamFloor);
   // 拉起战斗过程界面，动画播放完毕后再显示结果
   playBattleArena(result, () => {
@@ -1182,6 +1185,9 @@ function checkTowerBattleReady() {
 
 document.getElementById('btn-tower-battle').addEventListener('click', () => {
   if (!selectedTowerPet) return;
+  if (GameState.dungeonStamina <= 0) { alert('副本次数不足！请等待恢复或看广告获取。'); return; }
+  GameState.dungeonStamina--;
+  GameState.dungeonStaminaLastRegen = Date.now();
   const result = runTowerBattle(selectedTowerPet, selectedTowerFloor);
   playBattleArena(result, () => {
     showBattleLog('tower-battle-log', result);
@@ -1507,6 +1513,7 @@ function addFreeResources() {
       GameState.fruit += 3;
       GameState.evoStone += 2;
       GameState.pokeball = Math.min(GameState.pokeball + 2, CONFIG.POKEBALL_MAX);
+      GameState.dungeonStamina = Math.min(GameState.dungeonStamina + 2, CONFIG.DUNGEON_STAMINA_MAX);
       reward.style.display = 'block';
       btn.style.display = 'inline-block';
       updateFooter();
@@ -1535,6 +1542,17 @@ function updateFooter() {
   if (pcCap) pcCap.textContent = GameState.pokeball;
   const ptTimer = document.getElementById('pokeball-timer');
   if (ptTimer) ptTimer.textContent = getPokeballRegenTime();
+  // 副本体力
+  const dsCount = document.getElementById('dungeon-stamina-count');
+  if (dsCount) dsCount.textContent = GameState.dungeonStamina;
+  const dsRegen = document.getElementById('dungeon-stamina-regen');
+  if (dsRegen) {
+    if (GameState.dungeonStamina < CONFIG.DUNGEON_STAMINA_MAX) {
+      dsRegen.textContent = `(${getDungeonStaminaRegenTime()})`;
+    } else {
+      dsRegen.textContent = '';
+    }
+  }
   // 统计
   const stats = document.getElementById('gen-stats');
   if (GameState.pets.length > 0) {
@@ -1618,6 +1636,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   initCapturePage();
   startPokeballRegen();
+  startDungeonStaminaRegen();
   startPokeballUITimer();
   startAutoSave();
   updateFooter();

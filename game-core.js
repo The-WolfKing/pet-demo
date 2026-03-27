@@ -18,6 +18,9 @@ const GameState = {
   pokeball: CONFIG.INITIAL_POKEBALL,
   pokeballTimer: null,
   pokeballLastRegen: Date.now(),
+  dungeonStamina: CONFIG.DUNGEON_STAMINA_MAX,
+  dungeonStaminaTimer: null,
+  dungeonStaminaLastRegen: Date.now(),
   teamDungeonFloor: 1,
   towerFloor: 1,
 };
@@ -37,6 +40,27 @@ function getPokeballRegenTime() {
   if (GameState.pokeball >= CONFIG.POKEBALL_MAX) return '已满';
   const elapsed = Date.now() - GameState.pokeballLastRegen;
   const remaining = CONFIG.POKEBALL_REGEN_MS - (elapsed % CONFIG.POKEBALL_REGEN_MS);
+  const sec = Math.ceil(remaining / 1000);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ========== 副本体力恢复 ==========
+function startDungeonStaminaRegen() {
+  GameState.dungeonStaminaLastRegen = Date.now();
+  GameState.dungeonStaminaTimer = setInterval(() => {
+    if (GameState.dungeonStamina < CONFIG.DUNGEON_STAMINA_MAX) {
+      GameState.dungeonStamina++;
+      if (typeof updateFooter === 'function') updateFooter();
+    }
+  }, CONFIG.DUNGEON_STAMINA_REGEN_MS);
+}
+
+function getDungeonStaminaRegenTime() {
+  if (GameState.dungeonStamina >= CONFIG.DUNGEON_STAMINA_MAX) return '已满';
+  const elapsed = Date.now() - GameState.dungeonStaminaLastRegen;
+  const remaining = CONFIG.DUNGEON_STAMINA_REGEN_MS - (elapsed % CONFIG.DUNGEON_STAMINA_REGEN_MS);
   const sec = Math.ceil(remaining / 1000);
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -772,6 +796,8 @@ function saveGame() {
       evoStone: GameState.evoStone,
       pokeball: GameState.pokeball,
       pokeballLastRegen: GameState.pokeballLastRegen,
+      dungeonStamina: GameState.dungeonStamina,
+      dungeonStaminaLastRegen: GameState.dungeonStaminaLastRegen,
       teamDungeonFloor: GameState.teamDungeonFloor,
       towerFloor: GameState.towerFloor,
       pets: GameState.pets.map(p => ({
@@ -822,6 +848,7 @@ function loadGame() {
     GameState.fruit = saveData.fruit ?? CONFIG.INITIAL_FRUIT;
     GameState.evoStone = saveData.evoStone ?? CONFIG.INITIAL_EVO_STONE;
     GameState.pokeball = saveData.pokeball ?? CONFIG.INITIAL_POKEBALL;
+    GameState.dungeonStamina = saveData.dungeonStamina ?? CONFIG.DUNGEON_STAMINA_MAX;
     GameState.teamDungeonFloor = saveData.teamDungeonFloor || 1;
     GameState.towerFloor = saveData.towerFloor || 1;
 
@@ -833,6 +860,15 @@ function loadGame() {
       GameState.pokeball = Math.min(CONFIG.POKEBALL_MAX, GameState.pokeball + offlineBalls);
     }
     GameState.pokeballLastRegen = Date.now();
+
+    // 恢复副本体力（计算离线期间应恢复的次数）
+    const lastStaminaRegen = saveData.dungeonStaminaLastRegen || Date.now();
+    const offlineStaminaMs = Date.now() - lastStaminaRegen;
+    const offlineStamina = Math.floor(offlineStaminaMs / CONFIG.DUNGEON_STAMINA_REGEN_MS);
+    if (offlineStamina > 0) {
+      GameState.dungeonStamina = Math.min(CONFIG.DUNGEON_STAMINA_MAX, GameState.dungeonStamina + offlineStamina);
+    }
+    GameState.dungeonStaminaLastRegen = Date.now();
 
     // 恢复伙伴（重建species引用）
     GameState.pets = [];

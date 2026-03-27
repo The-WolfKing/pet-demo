@@ -376,17 +376,22 @@ const VARIANT_NAMES = {
 // 难度曲线：指数增长，第1层=刚抓的3只普通伙伴可通关，第10层=满级史诗队伍挑战
 const DUNGEON_TEAM = [];
 const TEAM_FLOOR_CONFIG = [
-  // floor, baseHP, baseATK, baseDEF, eliteHPMult, eliteATKMult, eliteDEFMult, mobCount
-  { base: 40,   eliteMult: 1.3 },  // 第1层 - 非常简单，送经验
-  { base: 70,   eliteMult: 1.4 },  // 第2层 - 简单
-  { base: 120,  eliteMult: 1.5 },  // 第3层 - 需要练几级
-  { base: 180,  eliteMult: 1.6 },  // 第4层
-  { base: 260,  eliteMult: 1.7 },  // 第5层
-  { base: 360,  eliteMult: 1.8 },  // 第6层
-  { base: 480,  eliteMult: 1.9 },  // 第7层
-  { base: 620,  eliteMult: 2.0 },  // 第8层
-  { base: 800,  eliteMult: 2.1 },  // 第9层
-  { base: 1020, eliteMult: 2.2 },  // 第10层 - 高难度
+  // 第1关: 30%资质 Lv3伙伴可过 (ATK~112, HP~520)
+  { base: 25,   eliteMult: 1.2 },  // 第1层 - 新手保底，送经验
+  // 第2关: 40%资质 Lv5伙伴可过 (ATK~127, HP~544)
+  { base: 40,   eliteMult: 1.3 },  // 第2层 - 稍微练一下
+  // 第3关: 50%资质 Lv10伙伴可过 (ATK~167, HP~609)
+  { base: 65,   eliteMult: 1.3 },  // 第3层
+  // 第4-6关: 逐步增强，需要更高资质和等级
+  { base: 95,   eliteMult: 1.4 },  // 第4层 - 50%资质 Lv15
+  { base: 130,  eliteMult: 1.5 },  // 第5层 - 55%资质 Lv20
+  { base: 175,  eliteMult: 1.6 },  // 第6层 - 55%资质 Lv28
+  // 第7-9关: 野外抓捕上限(60%资质)的极限
+  { base: 230,  eliteMult: 1.7 },  // 第7层 - 60%资质 Lv33
+  { base: 295,  eliteMult: 1.8 },  // 第8层 - 60%资质 Lv38
+  { base: 370,  eliteMult: 1.9 },  // 第9层 - 60%资质 Lv40+ 极限通关
+  // 第10关: 需要繁育提升资质才能过
+  { base: 470,  eliteMult: 2.0 },  // 第10层 - 需要70%+资质，繁育起步
 ];
 for (let i = 0; i < TEAM_FLOOR_CONFIG.length; i++) {
   const cfg = TEAM_FLOOR_CONFIG[i];
@@ -405,7 +410,7 @@ for (let i = 0; i < TEAM_FLOOR_CONFIG.length; i++) {
 
 // 爬塔副本（20层） —— 同样前几层降低难度
 const DUNGEON_TOWER = [];
-const TOWER_BASES = [30, 55, 90, 130, 180, 240, 310, 400, 500, 620, 750, 900, 1070, 1260, 1470, 1700, 1960, 2250, 2580, 2950];
+const TOWER_BASES = [20, 38, 58, 85, 120, 160, 210, 270, 340, 420, 520, 640, 780, 940, 1120, 1330, 1570, 1850, 2170, 2550];
 for (let i = 0; i < TOWER_BASES.length; i++) {
   const base = TOWER_BASES[i];
   DUNGEON_TOWER.push({
@@ -419,9 +424,11 @@ for (let i = 0; i < TOWER_BASES.length; i++) {
 const CONFIG = {
   INITIAL_FRUIT: 5,
   INITIAL_EVO_STONE: 3,
-  INITIAL_POKEBALL: 5,
-  POKEBALL_MAX: 50,
-  POKEBALL_REGEN_MS: 1000,  // 1秒 = 1000ms
+  INITIAL_POKEBALL: 10,
+  POKEBALL_MAX: 10,
+  POKEBALL_REGEN_MS: 60000,  // 1分钟 = 60000ms
+  DUNGEON_STAMINA_MAX: 5,
+  DUNGEON_STAMINA_REGEN_MS: 300000,  // 5分钟 = 300000ms
   CAPTURE_POTENTIAL_MIN: 0.30,
   CAPTURE_POTENTIAL_MAX: 0.60,
   SHINY_BASE_CHANCE: 0.10,
@@ -455,24 +462,24 @@ const QUALITY_BASE_STATS = {
 };
 
 // ========== 副本经验配置 ==========
+// 设计目标:
+//  - 第1关: Lv1-10每打1次升1-2级
+//  - 第6-7关: Lv40带Lv1，1次可以升十几级, 3-4次到30+
+//  - 经验按层数大幅递增，鼓励打高层带低级
 const DUNGEON_EXP = {
-  // 团战副本经验（每个出战伙伴获得）
-  //  第1层: 1-5级每打1次升1级    → 给120（Lv1需100，Lv4需130）
-  //  第2层: 5-10级每打2次升1级   → 给120（Lv5需180，2次=240）
-  //  第3层: 10-15级每打3次升1级  → 给120（Lv10需280，3次=360）
-  //  后续层数经验持续增长
-  team: [0, 120, 200, 320, 480, 680, 920, 1200, 1550, 1950, 2400],
-  // 爬塔副本经验（单人，给少一些但层数多）
-  tower: [0, 80, 130, 200, 280, 380, 500, 640, 800, 980, 1180, 1400, 1650, 1920, 2220, 2550, 2900, 3300, 3750, 4250, 4800],
+  team: [0, 150, 320, 600, 1000, 1600, 2400, 3500, 5000, 7000, 10000],
+  tower: [0, 100, 200, 380, 650, 1000, 1500, 2200, 3100, 4300, 5800, 7500, 9500, 12000, 15000, 18500, 22500, 27000, 32000, 38000],
 };
 
-// 每级所需经验：前期平缓，后期陡增
-// Lv1→2: 100, Lv5→6: 180, Lv10→11: 280, Lv20→21: 480, Lv30→31: 780, Lv40→41: 1180, Lv49→50: 1560
+// 每级所需经验：前期非常平缓，中期适中，后期缓增
+// Lv1→2: 80, Lv5→6: 130, Lv10→11: 200, Lv15→16: 320
+// Lv20→21: 500, Lv25→26: 720, Lv30→31: 980, Lv40→41: 1400
 function getExpForLevel(level) {
-  if (level <= 5) return 80 + level * 20;          // 100~180，前5级很快
-  if (level <= 15) return 100 + level * 18;         // 208~370，中期适中
-  if (level <= 30) return 100 + level * 22;         // 430~760，中后期变难
-  return 100 + level * 30;                          // 后期大幅增长
+  if (level <= 5) return 50 + level * 16;           // 66~130，前5级非常快
+  if (level <= 10) return 60 + level * 14;          // 130~200，平滑过渡
+  if (level <= 20) return 20 + level * 24;          // 284~500，中期
+  if (level <= 35) return level * 30;               // 630~1050，中后期
+  return level * 35;                                // 后期1260~1750
 }
 
 // ========== 副本场景背景 ==========
