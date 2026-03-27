@@ -437,12 +437,13 @@ function breed(father, mother) {
   // ★ 技能：从母系种类技能池随机2~4个
   const skillCount = randInt(2, 4);
 
-  // ★ 词条继承：父母各取一条 + 概率获得繁育专属词条（同系列规避）
+  // ★ 词条继承：父母各取一条普通词条（排除繁育词条和十代之证）+ 独立概率获得1条繁育专属词条
   const childAffixes = [];
   const usedAffixFamilies = new Set();
 
+  // 从父方继承1条普通词条（非繁育、非十代）
   if (father.affixes.length > 0) {
-    const faCandidates = father.affixes.filter(a => !a.isGen10 && !usedAffixFamilies.has(getAffixFamily(a.name)));
+    const faCandidates = father.affixes.filter(a => !a.isGen10 && !a.isBreedAffix && !usedAffixFamilies.has(getAffixFamily(a.name)));
     const fa = faCandidates.length > 0 ? pick(faCandidates) : null;
     if (fa) {
       childAffixes.push({ ...fa, value: fa.isMixed ? 0 : randInt(fa.min || fa.value, fa.max || fa.value),
@@ -452,8 +453,9 @@ function breed(father, mother) {
       usedAffixFamilies.add(getAffixFamily(fa.name));
     }
   }
+  // 从母方继承1条普通词条（非繁育、非十代，且不与父方同系列）
   if (mother.affixes.length > 0) {
-    const maCandidates = mother.affixes.filter(a => !a.isGen10 && !usedAffixFamilies.has(getAffixFamily(a.name)));
+    const maCandidates = mother.affixes.filter(a => !a.isGen10 && !a.isBreedAffix && !usedAffixFamilies.has(getAffixFamily(a.name)));
     const ma = maCandidates.length > 0 ? pick(maCandidates) : null;
     if (ma) {
       childAffixes.push({ ...ma, value: ma.isMixed ? 0 : randInt(ma.min || ma.value, ma.max || ma.value),
@@ -463,13 +465,10 @@ function breed(father, mother) {
       usedAffixFamilies.add(getAffixFamily(ma.name));
     }
   }
+  // 独立概率附加1条繁育专属词条（不可遗传，只能有1条）
   if (Math.random() < CONFIG.BREED_AFFIX_CHANCE) {
-    const breedCandidates = AFFIX_POOL.breed.filter(a => !usedAffixFamilies.has(getAffixFamily(a.name)));
-    if (breedCandidates.length > 0) {
-      const ba = pick(breedCandidates);
-      childAffixes.push({ ...ba, value: randInt(ba.min, ba.max), isBreedAffix: true, isGen10: false });
-      usedAffixFamilies.add(getAffixFamily(ba.name));
-    }
+    const ba = pick(AFFIX_POOL.breed);
+    childAffixes.push({ ...ba, value: randInt(ba.min, ba.max), isBreedAffix: true, isGen10: false });
   }
 
   // ★ 性别随机
