@@ -259,22 +259,26 @@ function createPet(speciesId, quality, gender, options = {}) {
   return pet;
 }
 
+// 提取词条系列名（去掉末尾的I/II/III/数字）用于同系列规避
+function getAffixFamily(name) {
+  return name.replace(/\s*[IVX\d]+$/, '').trim();
+}
+
 function generateWildAffixes() {
   const affixes = [];
   const count = randInt(1, 3);
-  // 合并所有可能的词条池（固定值+百分比+负面+混合）
   const pool = [
     ...AFFIX_POOL.normal_pos,
     ...AFFIX_POOL.normal_pct,
     ...AFFIX_POOL.normal_neg,
     ...AFFIX_POOL.normal_mix,
   ];
-  const usedIds = new Set();
+  const usedFamilies = new Set();
   for (let i = 0; i < count; i++) {
-    const candidates = pool.filter(a => !usedIds.has(a.id));
+    const candidates = pool.filter(a => !usedFamilies.has(getAffixFamily(a.name)));
     if (candidates.length === 0) break;
     const base = pick(candidates);
-    usedIds.add(base.id);
+    usedFamilies.add(getAffixFamily(base.name));
 
     if (base.buffStat) {
       // 混合词条：有增有减
@@ -433,19 +437,39 @@ function breed(father, mother) {
   // ★ 技能：从母系种类技能池随机2~4个
   const skillCount = randInt(2, 4);
 
-  // ★ 词条继承：父母各取一条 + 概率获得繁育专属词条
+  // ★ 词条继承：父母各取一条 + 概率获得繁育专属词条（同系列规避）
   const childAffixes = [];
+  const usedAffixFamilies = new Set();
+
   if (father.affixes.length > 0) {
-    const fa = pick(father.affixes.filter(a => !a.isGen10));
-    if (fa) childAffixes.push({ ...fa, value: randInt(fa.min || fa.value, fa.max || fa.value) });
+    const faCandidates = father.affixes.filter(a => !a.isGen10 && !usedAffixFamilies.has(getAffixFamily(a.name)));
+    const fa = faCandidates.length > 0 ? pick(faCandidates) : null;
+    if (fa) {
+      childAffixes.push({ ...fa, value: fa.isMixed ? 0 : randInt(fa.min || fa.value, fa.max || fa.value),
+        buffValue: fa.isMixed ? randInt(fa.buffMin, fa.buffMax) : undefined,
+        debuffValue: fa.isMixed ? randInt(fa.debuffMin, fa.debuffMax) : undefined,
+      });
+      usedAffixFamilies.add(getAffixFamily(fa.name));
+    }
   }
   if (mother.affixes.length > 0) {
-    const ma = pick(mother.affixes.filter(a => !a.isGen10));
-    if (ma) childAffixes.push({ ...ma, value: randInt(ma.min || ma.value, ma.max || ma.value) });
+    const maCandidates = mother.affixes.filter(a => !a.isGen10 && !usedAffixFamilies.has(getAffixFamily(a.name)));
+    const ma = maCandidates.length > 0 ? pick(maCandidates) : null;
+    if (ma) {
+      childAffixes.push({ ...ma, value: ma.isMixed ? 0 : randInt(ma.min || ma.value, ma.max || ma.value),
+        buffValue: ma.isMixed ? randInt(ma.buffMin, ma.buffMax) : undefined,
+        debuffValue: ma.isMixed ? randInt(ma.debuffMin, ma.debuffMax) : undefined,
+      });
+      usedAffixFamilies.add(getAffixFamily(ma.name));
+    }
   }
   if (Math.random() < CONFIG.BREED_AFFIX_CHANCE) {
-    const ba = pick(AFFIX_POOL.breed);
-    childAffixes.push({ ...ba, value: randInt(ba.min, ba.max), isBreedAffix: true, isGen10: false });
+    const breedCandidates = AFFIX_POOL.breed.filter(a => !usedAffixFamilies.has(getAffixFamily(a.name)));
+    if (breedCandidates.length > 0) {
+      const ba = pick(breedCandidates);
+      childAffixes.push({ ...ba, value: randInt(ba.min, ba.max), isBreedAffix: true, isGen10: false });
+      usedAffixFamilies.add(getAffixFamily(ba.name));
+    }
   }
 
   // ★ 性别随机
