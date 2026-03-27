@@ -362,19 +362,62 @@ function canBreed(father, mother) {
   return errors;
 }
 
-// ★ 繁育预览：计算子代资质区间（供UI显示用）
+// ★ 繁育预览：计算子代资质区间（供UI显示用，与breed算法v4同步）
 function calcBreedPreviewRange(father, mother) {
   const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
+  const childQuality = mother.quality;
+  const species = mother.species;
+  const tmpl = TYPE_TEMPLATE[species.type];
+  const ownQualityCap = {
+    atk: Math.floor(tmpl.atk * QUALITY[childQuality].coeff),
+    def: Math.floor(tmpl.def * QUALITY[childQuality].coeff),
+    hp:  Math.floor(tmpl.hp  * QUALITY[childQuality].coeff),
+  };
+  const legendCap = {
+    atk: Math.floor(tmpl.atk * QUALITY[5].coeff),
+    def: Math.floor(tmpl.def * QUALITY[5].coeff),
+    hp:  Math.floor(tmpl.hp  * QUALITY[5].coeff),
+  };
+
+  const isPhase1 = childGen <= 6;
+  const genFactor = isPhase1 ? Math.min(0.28 + childGen * 0.12, 0.96) : 0.98;
+  const hasG0Parent = (father.generation === 0 || mother.generation === 0);
+  const g0Bonus = (isPhase1 && childGen <= 5 && hasG0Parent) ? 0.08 : 0;
+  const genGap = Math.abs(father.generation - mother.generation);
+  const gapPenalty = isPhase1 ? Math.max(0.70, 1.0 - genGap * 0.05) : 1.0;
+
   const growthFactor = 0.25 + childGen * 0.08;
   const ranges = {};
   for (const stat of ['atk', 'def', 'hp']) {
     const fVal = father.potential[stat];
     const mVal = mother.potential[stat];
-    const capLimit = Math.min(father.potentialCap[stat], mother.potentialCap[stat]);
-    const rangeMin = Math.floor(Math.min(fVal, mVal) * 0.95);
+    const parentMaxCap = Math.max(father.potentialCap[stat], mother.potentialCap[stat]);
+    const parentAvgCap = (father.potentialCap[stat] + mother.potentialCap[stat]) / 2;
+    const baseCap = (parentMaxCap + parentAvgCap) / 2;
+    let utilBonus = 1.0;
+    if (isPhase1) {
+      const parentAvgVal = (fVal + mVal) / 2;
+      const utilRate = Math.min(parentAvgVal / Math.max(parentAvgCap, 1), 1.0);
+      utilBonus = 0.85 + utilRate * 0.23;
+    }
+    const targetCap = Math.max(ownQualityCap[stat], parentMaxCap);
+    const effectiveCeiling = Math.min(targetCap, legendCap[stat]);
+    const room = Math.max(0, effectiveCeiling - baseCap);
+    const effectiveGenFactor = Math.min(genFactor + g0Bonus, 0.99);
+    const childCapRaw = Math.floor((baseCap + room * effectiveGenFactor) * gapPenalty * utilBonus);
+    const floorCap = isPhase1 ? Math.floor(baseCap * 0.85) : Math.min(father.potentialCap[stat], mother.potentialCap[stat]);
+    const capLimit = clamp(childCapRaw, floorCap, legendCap[stat]);
+
     const maxParent = Math.max(fVal, mVal);
-    const room = Math.max(0, capLimit - maxParent);
-    const growth = Math.floor(room * growthFactor);
+    const minParent = Math.min(fVal, mVal);
+    let rangeMin;
+    if (isPhase1) {
+      rangeMin = Math.floor(minParent * 0.95);
+    } else {
+      rangeMin = Math.floor(minParent * (0.93 + childGen * 0.005));
+    }
+    const growthRoom = Math.max(0, capLimit - maxParent);
+    const growth = Math.floor(growthRoom * growthFactor);
     const rangeMax = Math.min(maxParent + growth, capLimit);
     ranges[stat] = { min: rangeMin, max: rangeMax };
   }
@@ -399,18 +442,79 @@ function breed(father, mother) {
   // ★ 代数 = max(父,母) + 1
   const childGen = Math.min(Math.max(father.generation, mother.generation) + 1, CONFIG.MAX_GENERATION);
 
-  // ★ 资质上限：继承父母中较低的上限（子代cap不超过父母）
-  const cap = {
-    atk: Math.min(father.potentialCap.atk, mother.potentialCap.atk),
-    def: Math.min(father.potentialCap.def, mother.potentialCap.def),
-    hp:  Math.min(father.potentialCap.hp,  mother.potentialCap.hp),
+  // ═══════════════════════════════════════════
+  // ★ 资质上限继承算法 v4
+  // ═══════════════════════════════════════════
+  // 理论天花板 = 该种族品质对应的上限（非传说品质的伙伴用更高品质可以突破）
+  const tmpl = TYPE_TEMPLATE[species.type];
+  const ownQualityCap = {
+    atk: Math.floor(tmpl.atk * QUALITY[childQuality].coeff),
+    def: Math.floor(tmpl.def * QUALITY[childQuality].coeff),
+    hp:  Math.floor(tmpl.hp  * QUALITY[childQuality].coeff),
+  };
+  // 绝对天花板 = 传说品质的cap（使用更高品质父母时可突破自身品质上限）
+  const legendCap = {
+    atk: Math.floor(tmpl.atk * QUALITY[5].coeff),
+    def: Math.floor(tmpl.def * QUALITY[5].coeff),
+    hp:  Math.floor(tmpl.hp  * QUALITY[5].coeff),
   };
 
-  // ★ 核心遗传算法 v2
-  // 最小值 = min(父,母) × 0.95
-  // 最大值 = min( max(父,母) + (cap - max(父,母)) × growthFactor, cap )
-  // growthFactor = 0.25 + childGen × 0.08  （代数越高，成长越快）
-  // 子代资质 = 在 [最小值, 最大值] 之间随机
+  const isPhase1 = childGen <= 6;  // 阶段一: G1-G6 提升上限期
+  // const isPhase2 = childGen >= 7;  // 阶段二: G7-G10 稳定下限期
+
+  // 代数成长系数 (G1=0.40, G2=0.52, G3=0.64, G4=0.76, G5=0.88, G6=0.96, G7+=0.98)
+  const genFactor = isPhase1
+    ? Math.min(0.28 + childGen * 0.12, 0.96)
+    : 0.98;
+
+  // 初代血统加成：前5代，如果父母有一方是G0，上限继承更快 (+0.08)
+  const hasG0Parent = (father.generation === 0 || mother.generation === 0);
+  const g0Bonus = (isPhase1 && childGen <= 5 && hasG0Parent) ? 0.08 : 0;
+
+  // 代差惩罚：仅阶段一生效
+  const genGap = Math.abs(father.generation - mother.generation);
+  const gapPenalty = isPhase1
+    ? Math.max(0.70, 1.0 - genGap * 0.05)
+    : 1.0;  // 阶段二不惩罚
+
+  const cap = {};
+  for (const stat of ['atk', 'def', 'hp']) {
+    // 父母中较高的上限作为基础（允许高品质父母提升子代上限）
+    const parentMaxCap = Math.max(father.potentialCap[stat], mother.potentialCap[stat]);
+    const parentAvgCap = (father.potentialCap[stat] + mother.potentialCap[stat]) / 2;
+    const baseCap = (parentMaxCap + parentAvgCap) / 2;  // 偏向高者
+
+    // 资质利用率修正：仅阶段一生效
+    let utilBonus = 1.0;
+    if (isPhase1) {
+      const parentAvgVal = (father.potential[stat] + mother.potential[stat]) / 2;
+      const utilRate = Math.min(parentAvgVal / Math.max(parentAvgCap, 1), 1.0);
+      // 利用率高=加成(最高1.08)，利用率低=惩罚(最低0.85)
+      utilBonus = 0.85 + utilRate * 0.23;
+    }
+
+    // 理论天花板 = 父母品质有更高的就用更高的，否则用自身品质
+    const targetCap = Math.max(ownQualityCap[stat], parentMaxCap);
+    const effectiveCeiling = Math.min(targetCap, legendCap[stat]);
+
+    // 成长空间
+    const room = Math.max(0, effectiveCeiling - baseCap);
+    const effectiveGenFactor = Math.min(genFactor + g0Bonus, 0.99);
+    const childCapRaw = Math.floor((baseCap + room * effectiveGenFactor) * gapPenalty * utilBonus);
+
+    // 阶段二保底：子代上限不低于父母双方上限中较低者
+    const floorCap = isPhase1
+      ? Math.floor(baseCap * 0.85)
+      : Math.min(father.potentialCap[stat], mother.potentialCap[stat]);
+
+    cap[stat] = clamp(childCapRaw, floorCap, legendCap[stat]);
+  }
+
+  // ═══════════════════════════════════════════
+  // ★ 核心遗传算法 v3
+  // ═══════════════════════════════════════════
+  // 阶段一(G1-G6): 重点提升资质上限，下限 = min(父,母) × 0.95
+  // 阶段二(G7-G10): 重点提升资质下限，下限 = min(父,母) × (0.96 + gen*0.005)，趋近稳定
   const potential = {};
   const breedRanges = {};
   const growthFactor = 0.25 + childGen * 0.08;
@@ -418,12 +522,21 @@ function breed(father, mother) {
   for (const stat of ['atk', 'def', 'hp']) {
     const fVal = father.potential[stat];
     const mVal = mother.potential[stat];
-
-    // 最小值 = 双方较低值 × 0.95
-    const rangeMin = Math.floor(Math.min(fVal, mVal) * 0.95);
-
-    // 最大值 = max(父,母) + 成长空间 × growthFactor
     const maxParent = Math.max(fVal, mVal);
+    const minParent = Math.min(fVal, mVal);
+
+    // 下限计算
+    let rangeMin;
+    if (isPhase1) {
+      // 阶段一：下限 = 较低亲本 × 0.95
+      rangeMin = Math.floor(minParent * 0.95);
+    } else {
+      // 阶段二：下限逐代提高 (G7=0.965, G8=0.97, G9=0.975, G10=0.98)
+      const minFloorRate = 0.93 + childGen * 0.005;
+      rangeMin = Math.floor(minParent * minFloorRate);
+    }
+
+    // 上限计算：max(父,母) + 成长空间 × growthFactor
     const room = Math.max(0, cap[stat] - maxParent);
     const growth = Math.floor(room * growthFactor);
     const rangeMax = Math.min(maxParent + growth, cap[stat]);
