@@ -1292,7 +1292,7 @@ function showBattleResultOverlay(result) {
     </div>
     ${statsHtml}
     ${enemyHtml}
-    ${isWin ? `<div class="br-reward-section"><span class="br-reward-icon">${result.rewardType}</span> <span class="br-reward-val">×${result.reward}</span></div>` : ''}
+    ${isWin ? `<div class="br-reward-section"><span class="br-reward-icon">${result.rewardType}</span> <span class="br-reward-val">×${result.reward}</span>${result.bonusFruit ? ` + <span class="br-reward-icon">🍎 欲望之果</span> <span class="br-reward-val">×${result.bonusFruit}</span>` : ''}</div>` : ''}
     ${expHtml}
     <button class="btn btn-primary br-close-btn" onclick="closeBattleResult()">确认</button>
   `;

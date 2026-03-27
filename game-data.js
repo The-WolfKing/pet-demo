@@ -374,29 +374,59 @@ const VARIANT_NAMES = {
 // ========== 副本数据 ==========
 // 团战副本（10层） —— 前两层很简单，后面逐层变难
 // 难度曲线：指数增长，第1层=刚抓的3只普通伙伴可通关，第10层=满级史诗队伍挑战
+// ========== 团队副本（20层） ==========
 const DUNGEON_TEAM = [];
 const TEAM_FLOOR_CONFIG = [
-  // 第1关: 30%资质 Lv3伙伴可过 (ATK~112, HP~520)
-  { base: 25,   eliteMult: 1.2 },  // 第1层 - 新手保底，送经验
-  // 第2关: 40%资质 Lv5伙伴可过 (ATK~127, HP~544)
-  { base: 40,   eliteMult: 1.3 },  // 第2层 - 稍微练一下
-  // 第3关: 50%资质 Lv10伙伴可过 (ATK~167, HP~609)
+  // === 第1-3关: 新手区（30-50%资质，Lv3-10） ===
+  { base: 25,   eliteMult: 1.2 },  // 第1层
+  { base: 40,   eliteMult: 1.3 },  // 第2层
   { base: 65,   eliteMult: 1.3 },  // 第3层
-  // 第4-6关: 逐步增强，需要更高资质和等级
-  { base: 95,   eliteMult: 1.4 },  // 第4层 - 50%资质 Lv15
-  { base: 130,  eliteMult: 1.5 },  // 第5层 - 55%资质 Lv20
-  { base: 175,  eliteMult: 1.6 },  // 第6层 - 55%资质 Lv28
-  // 第7-9关: 野外抓捕上限(60%资质)的极限
-  { base: 230,  eliteMult: 1.7 },  // 第7层 - 60%资质 Lv33
-  { base: 295,  eliteMult: 1.8 },  // 第8层 - 60%资质 Lv38
-  { base: 370,  eliteMult: 1.9 },  // 第9层 - 60%资质 Lv40+ 极限通关
-  // 第10关: 需要繁育提升资质才能过
-  { base: 470,  eliteMult: 2.0 },  // 第10层 - 需要70%+资质，繁育起步
+  // === 第4-6关: 成长区（50-55%资质，Lv15-28） ===
+  { base: 95,   eliteMult: 1.4 },  // 第4层
+  { base: 130,  eliteMult: 1.5 },  // 第5层
+  { base: 175,  eliteMult: 1.6 },  // 第6层
+  // === 第7-9关: 野外极限（60%资质，Lv33-40） ===
+  { base: 230,  eliteMult: 1.7 },  // 第7层
+  { base: 295,  eliteMult: 1.8 },  // 第8层
+  { base: 370,  eliteMult: 1.9 },  // 第9层
+  // === 第10关: 繁育起步（70%+资质） ===
+  { base: 470,  eliteMult: 2.0 },  // 第10层
+  // === 第11-15关: 繁育中期（75-85%资质） ===
+  { base: 580,  eliteMult: 2.1 },  // 第11层
+  { base: 700,  eliteMult: 2.2 },  // 第12层
+  { base: 840,  eliteMult: 2.3 },  // 第13层
+  { base: 1000, eliteMult: 2.4 },  // 第14层
+  { base: 1180, eliteMult: 2.5 },  // 第15层
+  // === 第16-20关: 繁育后期（90%+资质，高代数） ===
+  { base: 1400, eliteMult: 2.6 },  // 第16层
+  { base: 1650, eliteMult: 2.7 },  // 第17层
+  { base: 1950, eliteMult: 2.8 },  // 第18层
+  { base: 2300, eliteMult: 2.9 },  // 第19层
+  { base: 2700, eliteMult: 3.0 },  // 第20层 - 终极关卡
 ];
+
+// 团队副本掉落配置：{min, max} 果子数
+const TEAM_FRUIT_REWARD = [
+  // 1-3层: 1-2个
+  {min:1,max:2}, {min:1,max:2}, {min:1,max:2},
+  // 4-6层: 3-5个
+  {min:3,max:5}, {min:3,max:5}, {min:3,max:5},
+  // 7-9层: 4-6个
+  {min:4,max:6}, {min:4,max:6}, {min:4,max:6},
+  // 10层: 固定6个
+  {min:6,max:6},
+  // 11-15层: 6-8个
+  {min:6,max:8}, {min:6,max:8}, {min:6,max:8}, {min:7,max:9}, {min:7,max:9},
+  // 16-20层: 8-12个
+  {min:8,max:10}, {min:8,max:10}, {min:9,max:11}, {min:10,max:12}, {min:10,max:12},
+];
+
 for (let i = 0; i < TEAM_FLOOR_CONFIG.length; i++) {
   const cfg = TEAM_FLOOR_CONFIG[i];
   const b = cfg.base;
   const eb = b * cfg.eliteMult;
+  const reward = TEAM_FRUIT_REWARD[i] || {min:10,max:12};
+  const fruitDrop = reward.min + Math.floor(Math.random() * (reward.max - reward.min + 1));
   DUNGEON_TEAM.push({
     floor: i + 1,
     enemies: [
@@ -404,26 +434,42 @@ for (let i = 0; i < TEAM_FLOOR_CONFIG.length; i++) {
       { name: `小怪Lv${i+1}`, hp: Math.floor(b * 2.5), atk: Math.floor(b * 0.5), def: Math.floor(b * 0.2), isElite: false },
       { name: `精英Lv${i+1}`, hp: Math.floor(eb * 3),   atk: Math.floor(eb * 0.7), def: Math.floor(eb * 0.35), isElite: true },
     ],
-    fruitReward: i + 1,  // 层数=繁育之果奖励数
+    fruitRewardRange: reward,  // 保存区间，战斗时随机
   });
 }
 
-// 爬塔副本（20层） —— 同样前几层降低难度
+// ========== 爬塔副本（20层） ==========
 const DUNGEON_TOWER = [];
-const TOWER_BASES = [20, 38, 58, 85, 120, 160, 210, 270, 340, 420, 520, 640, 780, 940, 1120, 1330, 1570, 1850, 2170, 2550];
+const TOWER_BASES = [
+  20, 38, 58, 85, 120, 160, 210, 270, 340, 420,
+  520, 640, 780, 940, 1120, 1330, 1570, 1850, 2170, 2550
+];
+// 爬塔掉落：进化石为主，高层额外掉果子
+// 1-5层: 1进化石
+// 6-10层: 1进化石+1果子
+// 11-15层: 2进化石+2果子
+// 16-20层: 2进化石+3果子
+const TOWER_REWARD_CONFIG = [
+  {stone:1,fruit:0}, {stone:1,fruit:0}, {stone:1,fruit:0}, {stone:1,fruit:0}, {stone:1,fruit:0},
+  {stone:1,fruit:1}, {stone:1,fruit:1}, {stone:1,fruit:1}, {stone:1,fruit:2}, {stone:1,fruit:2},
+  {stone:2,fruit:2}, {stone:2,fruit:2}, {stone:2,fruit:3}, {stone:2,fruit:3}, {stone:2,fruit:3},
+  {stone:2,fruit:3}, {stone:2,fruit:4}, {stone:2,fruit:4}, {stone:3,fruit:5}, {stone:3,fruit:5},
+];
 for (let i = 0; i < TOWER_BASES.length; i++) {
   const base = TOWER_BASES[i];
+  const rw = TOWER_REWARD_CONFIG[i] || {stone:3,fruit:5};
   DUNGEON_TOWER.push({
     floor: i + 1,
     boss: { name: `塔守Lv${i+1}`, hp: Math.floor(base * 4), atk: Math.floor(base * 0.6), def: Math.floor(base * 0.3) },
-    evoStoneReward: i < 10 ? 1 : 2,
+    evoStoneReward: rw.stone,
+    fruitReward: rw.fruit,
   });
 }
 
 // ========== 系统常量 ==========
 const CONFIG = {
   INITIAL_FRUIT: 5,
-  INITIAL_EVO_STONE: 3,
+  INITIAL_EVO_STONE: 1,
   INITIAL_POKEBALL: 10,
   POKEBALL_MAX: 10,
   POKEBALL_REGEN_MS: 60000,  // 1分钟 = 60000ms
@@ -467,8 +513,10 @@ const QUALITY_BASE_STATS = {
 //  - 第6-7关: Lv40带Lv1，1次可以升十几级, 3-4次到30+
 //  - 经验按层数大幅递增，鼓励打高层带低级
 const DUNGEON_EXP = {
-  team: [0, 150, 320, 600, 1000, 1600, 2400, 3500, 5000, 7000, 10000],
-  tower: [0, 100, 200, 380, 650, 1000, 1500, 2200, 3100, 4300, 5800, 7500, 9500, 12000, 15000, 18500, 22500, 27000, 32000, 38000],
+  team: [0, 150, 320, 600, 1000, 1600, 2400, 3500, 5000, 7000, 10000,
+         13000, 16500, 20500, 25000, 30000, 36000, 43000, 51000, 60000, 70000],
+  tower: [0, 100, 200, 380, 650, 1000, 1500, 2200, 3100, 4300, 5800,
+          7500, 9500, 12000, 15000, 18500, 22500, 27000, 32000, 38000, 45000],
 };
 
 // 每级所需经验：前期非常平缓，中期适中，后期缓增

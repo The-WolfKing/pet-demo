@@ -659,8 +659,12 @@ function runTeamBattle(team, floorIndex) {
     }
   }
 
+  // 随机掉落果子
+  let fruitDrop = 0;
   if (win) {
-    GameState.fruit += floor.fruitReward;
+    const range = floor.fruitRewardRange || {min:1,max:1};
+    fruitDrop = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+    GameState.fruit += fruitDrop;
     if (floorIndex + 1 >= GameState.teamDungeonFloor && floorIndex + 1 < DUNGEON_TEAM.length) {
       GameState.teamDungeonFloor = floorIndex + 2;
     }
@@ -668,7 +672,7 @@ function runTeamBattle(team, floorIndex) {
 
   return {
     success: true, win, log, rounds: round,
-    reward: win ? floor.fruitReward : 0,
+    reward: win ? fruitDrop : 0,
     rewardType: '🍎 欲望之果',
     expGain, expResults,
     allies, enemies,
@@ -737,8 +741,11 @@ function runTowerBattle(pet, floorIndex) {
     expResults.push({ name: ally.name, emoji: ally.emoji, exp: expGain, ...result });
   }
 
+  let towerFruitDrop = 0;
   if (win) {
     GameState.evoStone += floor.evoStoneReward;
+    towerFruitDrop = floor.fruitReward || 0;
+    if (towerFruitDrop > 0) GameState.fruit += towerFruitDrop;
     if (floorIndex + 1 >= GameState.towerFloor && floorIndex + 1 < DUNGEON_TOWER.length) {
       GameState.towerFloor = floorIndex + 2;
     }
@@ -748,6 +755,7 @@ function runTowerBattle(pet, floorIndex) {
     success: true, win, log, rounds: round,
     reward: win ? floor.evoStoneReward : 0,
     rewardType: '🧪 进化石',
+    bonusFruit: win ? towerFruitDrop : 0,
     expGain, expResults,
     allies: [ally], enemies: [boss],
     floorName: `第${floor.floor}层`,
