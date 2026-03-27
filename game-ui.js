@@ -611,10 +611,10 @@ function showSelectModal(gender) {
   if (allGender.length === 0) {
     list.innerHTML = `<div class="empty-tip">没有可用的${gender==='male'?'公':'母'}性伙伴</div>`;
   } else {
-    // 分三组：可用 / 十代之证 / 寿命不足
-    const available = allGender.filter(p => p.lifeCap > 0 && !p.hasGen10Affix);
+    // 分三组：可用 / 十代之证 / 寿命不足（上限<40即不足）
+    const available = allGender.filter(p => p.lifeCap >= CONFIG.LIFE_PER_BREED && !p.hasGen10Affix);
     const gen10Blocked = allGender.filter(p => p.hasGen10Affix);
-    const noLife = allGender.filter(p => p.lifeCap <= 0 && !p.hasGen10Affix);
+    const noLife = allGender.filter(p => p.lifeCap < CONFIG.LIFE_PER_BREED && !p.hasGen10Affix);
 
     available.forEach(pet => {
       list.appendChild(renderPetCard(pet, (p) => {

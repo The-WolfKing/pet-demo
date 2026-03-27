@@ -352,10 +352,12 @@ function canBreed(father, mother) {
   if (father && mother && father.id === mother.id) errors.push('不能和自己繁育');
   if (father && father.gender !== 'male') errors.push('父系必须是公');
   if (mother && mother.gender !== 'female') errors.push('母系必须是母');
-  if (father && father.lifeCap <= 0) errors.push('父系寿命上限为0，已退役');
-  if (mother && mother.lifeCap <= 0) errors.push('母系寿命上限为0，已退役');
+  if (father && father.lifeCap < CONFIG.LIFE_PER_BREED) errors.push('父系寿命不足，无法繁育');
+  if (mother && mother.lifeCap < CONFIG.LIFE_PER_BREED) errors.push('母系寿命不足，无法繁育');
   if (father && father.generation >= CONFIG.MAX_GENERATION) errors.push('父系已达十代，无法繁育');
   if (mother && mother.generation >= CONFIG.MAX_GENERATION) errors.push('母系已达十代，无法繁育');
+  if (father && father.hasGen10Affix) errors.push('父系拥有十代之证，血脉过于强大');
+  if (mother && mother.hasGen10Affix) errors.push('母系拥有十代之证，血脉过于强大');
   if (father && father.isVariant) errors.push('异色伙伴无法繁育');
   if (mother && mother.isVariant) errors.push('异色伙伴无法繁育');
   if (GameState.fruit < 1) errors.push('欲望之果不足');
@@ -430,7 +432,9 @@ function breed(father, mother) {
 
   GameState.fruit -= 1;
   father.lifeCap -= CONFIG.LIFE_PER_BREED;
+  father.life = Math.min(father.life, father.lifeCap);
   mother.lifeCap -= CONFIG.LIFE_PER_BREED;
+  mother.life = Math.min(mother.life, mother.lifeCap);
 
   // ★ 种类 & 外形随母系
   const speciesId = mother.speciesId;
