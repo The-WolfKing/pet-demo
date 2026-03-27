@@ -159,7 +159,7 @@ function renderPetDetailCard(pet, extraInfo) {
       </div>
       <div class="pdc-exp-life">
         <div class="exp-bar-wrap"><span class="exp-label">EXP</span><div class="stat-track"><div class="stat-fill exp" style="width:${expPct}%"></div></div><span class="stat-val">${pet.level>=CONFIG.MAX_LEVEL ? 'MAX' : `${pet.exp||0}/${needed}`}</span></div>
-        <div class="exp-bar-wrap"><span class="exp-label" style="color:#e74c3c">❤ 寿命:</span><span class="stat-val" style="margin-left:4px">${pet.life}</span><div class="stat-track"><div class="stat-fill" style="width:${lifePct}%;background:linear-gradient(90deg,#e74c3c,#c0392b)"></div></div><span class="stat-val">上限 ${pet.lifeCap}</span></div>
+        <div class="exp-bar-wrap"><span class="exp-label" style="color:#e74c3c">❤ 寿命</span><span class="stat-val" style="margin-left:6px">${pet.life}</span><div class="stat-track"><div class="stat-fill" style="width:${lifePct}%;background:linear-gradient(90deg,#e74c3c,#c0392b)"></div></div><span class="stat-val" style="white-space:nowrap">上限 ${pet.lifeCap}</span></div>
       </div>
       <div class="pdc-section-title">⚔ 技能 (${pet.skills.length})</div>
       <div class="pdc-skills">${renderSkillIcons(pet.skills, pet.evoStage > 0)}</div>
@@ -785,13 +785,14 @@ function showBreedResultOverlay(result) {
   if (breedAffixes.length > 0) {
     extraInfo += `🔮 <strong style="color:#27ae60">获得繁育词条：${breedAffixes.map(a=>a.name+'+'+a.value).join(', ')}</strong><br>`;
   }
-  // 显示繁育区间
+  // 显示繁育区间（ATK → DEF → HP，每行一条）
   if (result.breedRanges) {
-    extraInfo += `<div style="font-size:11px;color:#8899aa;margin-top:4px">`;
-    for (const stat of ['hp', 'atk', 'def']) {
+    extraInfo += `<div style="font-size:12px;color:#8899aa;margin-top:6px;line-height:1.8">`;
+    for (const stat of ['atk', 'def', 'hp']) {
       const r = result.breedRanges[stat];
-      const label = stat === 'hp' ? '❤HP' : stat === 'atk' ? '⚔ATK' : '🛡DEF';
-      extraInfo += `${label}: ${r.min}~${r.max} → <span style="color:#f1c40f">${result.child.potential[stat]}</span>　`;
+      const label = stat === 'atk' ? '⚔ ATK' : stat === 'def' ? '🛡 DEF' : '❤ HP';
+      const color = stat === 'atk' ? '#e74c3c' : stat === 'def' ? '#3498db' : '#2ecc71';
+      extraInfo += `<div><span style="color:${color}">${label}</span>: ${r.min} ~ ${r.max} → <span style="color:#f1c40f;font-weight:bold">${result.child.potential[stat]}</span></div>`;
     }
     extraInfo += `</div>`;
   }
